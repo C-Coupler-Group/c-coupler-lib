@@ -1,0 +1,28 @@
+C-Coupler Version 2.0 (C-Coupler2)
+Copyright Notice and Disclaimer
+
+The Community Coupler (C-Coupler) Version 2.0 (C-Coupler2) was developed in Tsinghua University, China.
+
+Authors:
+Li Liu, liuli-cess@tsinghua.edu.cn
+Cheng Zhang, zhangc-cess@tsinghua.edu.cn
+Ruizhe Li, liruizhe@tsinghua.edu.cn
+Bin Wang, wab@tsinghua.edu.cn
+
+Copyright Notice
+
+Access and use of this software shall impose the following obligations and understandings on the user. The user can be granted the right, without any fee or cost, to use, copy, modify, alter, enhance and distribute this software, and any derivative works thereof, and its supporting documentation for any purpose whatsoever, except any commercial activities (such as commercial usage, commercial sales, commercial services, etc.), provided that the following conditions are met:
+
+1) This entire notice appears in all copies of the software, derivative works and supporting documentation.
+
+2) If you modify the software and give a copy or copies of those modifications to others, either in source code or binary form, the software must carry notices stating that you changed specified portions of the Software.
+
+The licenses and copyrights of C-Coupler2 does not include external XML code mainly developed by Lee Thomason (www.grinninglizard.com). Please refer to the corresponding declarations in the external XML code files. 
+
+DISCLAIMER
+
+THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+
+IN NO EVENT WILL TSINGHUA UNIVERSITY OR ANY CONTRIBUTORS TO THE SOFTWARE BE LIABLE FOR ANY DAMAGES, INCLUDING DIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES RESULTING FROM EXERCISE OF THIS LICENSE AGREEMENT OR THE USE OF THE SOFTWARE.
+
+THIS MATERIAL IS MADE AVAILABLE WITH THE UNDERSTANDING THAT TSINGHUA UNIVERSITY IS NOT OBLIGATED TO PROVIDE (AND WILL NOT PROVIDE) THE USER WITH ANY SUPPORT, CONSULTING, TRAINING, OR ASSISTANCE OF ANY KIND WITH REGARD TO THE USE, OPERATION AND PERFORMANCE OF THIS SOFTWARE, NOR TO PROVIDE THE USER WITH ANY UPDATES, REVISIONS, NEW VERSIONS, OR "BUG FIXES."
