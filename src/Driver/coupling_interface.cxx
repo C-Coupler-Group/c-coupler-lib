@@ -42,7 +42,7 @@ void copy_out_string_to_Fortran_API(int comp_id, int size_API_string, char *API_
 
     get_API_hint(comp_id, API_id,API_label);
     
-    EXECUTION_REPORT(REPORT_ERROR, comp_id, size_API_string >= strlen(CCPL_string), "Error happens when calling the API \"%s\": the parameter string \"%s\" is too short: only %d while the required size is %d. Please verify the model code with the annotation \"%s\"", API_label, parameter_name, size_API_string, strlen(CCPL_string));
+    EXECUTION_REPORT(REPORT_ERROR, comp_id, size_API_string >= strlen(CCPL_string), "Error happens when calling the API \"%s\": the parameter string \"%s\" is too short: only %d while the required size is %d. Please verify the model code with the annotation \"%s\"", API_label, parameter_name, size_API_string, strlen(CCPL_string), annotation);
     strncpy(API_string, CCPL_string, strlen(CCPL_string));
     for (int i = strlen(CCPL_string); i < size_API_string; i ++)
         API_string[i] = ' ';    
@@ -368,7 +368,7 @@ int *enabled_in_parent_coupling_gen, int *change_dir, const char *executable_nam
     int root_comp_id;
     int current_proc_global_id;
     char file_name[NAME_STR_SIZE];
-    MPI_Comm cpp_comm = MPI_Comm_f2c(*f_comm);
+    MPI_Comm cpp_comm;
 
 
     EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "start to register the root component model");
@@ -388,7 +388,8 @@ int *enabled_in_parent_coupling_gen, int *change_dir, const char *executable_nam
 
     comp_comm_group_mgt_mgr = new Comp_comm_group_mgt_mgr(executable_name);
     import_report_setting();
-
+	
+	cpp_comm = MPI_Comm_f2c(*f_comm);
     if (cpp_comm != MPI_COMM_NULL) {
         EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "Before MPI_barrier at root component \"%s\" for synchronizing the processes of the component (the corresponding model code annotation is \"%s\").", comp_name, annotation);
         EXECUTION_REPORT(REPORT_ERROR,-1, MPI_Barrier(cpp_comm) == MPI_SUCCESS);
@@ -407,7 +408,7 @@ int *enabled_in_parent_coupling_gen, int *change_dir, const char *executable_nam
         EXECUTION_REPORT(REPORT_ERROR,-1, MPI_Comm_size(cpp_comm, &input_comm_size) == MPI_SUCCESS);
         new_comm = comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(root_comp_id, "C-Coupler code in register_root_component for getting component management node");
         EXECUTION_REPORT(REPORT_ERROR,-1, MPI_Comm_size(new_comm, &new_comm_size) == MPI_SUCCESS);
-        EXECUTION_REPORT(REPORT_ERROR,-1, input_comm_size == new_comm_size);  // add debug information
+        EXECUTION_REPORT(REPORT_ERROR,-1, input_comm_size == new_comm_size, "Error happens when calling the API \"CCPL_register_component\" to register the root component model \"%s\": its input communicator does not match the communicator generated (the number of processes of the two communicators are different (%d VS %d)). Please check the model code with the annotation \"%s\"", comp_name, input_comm_size, new_comm_size, annotation);
         EXECUTION_REPORT(REPORT_ERROR,-1, MPI_Comm_rank(MPI_COMM_WORLD, &current_proc_global_id) == MPI_SUCCESS);
         input_comm_process_ids = new int [input_comm_size];
         new_comm_process_ids = new int [new_comm_size];
@@ -418,7 +419,7 @@ int *enabled_in_parent_coupling_gen, int *change_dir, const char *executable_nam
         do_quick_sort(new_comm_process_ids, temp_array, 0, new_comm_size-1);
         for (int i = 0; i < input_comm_size; i ++)
             EXECUTION_REPORT(REPORT_ERROR,-1, input_comm_process_ids[i] == new_comm_process_ids[i], 
-                             "The communicator of root component model \"%s\" does not match the communicator generated (processes of the two communicators are not the same). Please check the model code with the annotation \"%s\"",
+                             "Error happens when calling the API \"CCPL_register_component\" to register the root component model \"%s\": its input communicator does not match the communicator generated (processes of the two communicators are not the same). Please check the model code with the annotation \"%s\"",
                              comp_name, annotation);
         delete [] input_comm_process_ids;
         delete [] new_comm_process_ids;
@@ -810,14 +811,14 @@ extern "C" void set_3d_grid_surface_field_
     else EXECUTION_REPORT(REPORT_ERROR, -1, false, "software error in set_3d_grid_surface_field_: wrong value of static_or_dynamic_or_external");
     get_API_hint(-1, API_id, API_label);    
     check_for_component_registered(-1, API_id, annotation, true);
-    EXECUTION_REPORT(REPORT_ERROR, -1, original_grid_mgr->is_grid_id_legal(*grid_id), "Error happens when calling the API \"%s\" to set the surface field of a 3-D grid: the parameter of \"grid_id\" is wrong. Please verify the model code with the annotation \"%s.", API_label, annotation);
+    EXECUTION_REPORT(REPORT_ERROR, -1, original_grid_mgr->is_grid_id_legal(*grid_id), "Error happens when calling the API \"%s\" to set the surface field of a 3-D grid: the parameter of \"grid_id\" is wrong. Please verify the model code with the annotation \"%s\".", API_label, annotation);
     
     EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "Start to set surface field for the 3D grid %s", original_grid_mgr->get_name_of_grid(*grid_id));
     
     comp_id = original_grid_mgr->get_comp_id_of_grid(*grid_id);
     if (*static_or_dynamic_or_external != BOTTOM_FIELD_VARIATION_EXTERNAL) {
-        EXECUTION_REPORT(REPORT_ERROR, comp_id, memory_manager->check_is_legal_field_instance_id(*field_id), "Error happens when calling the API \"%s\" to set the surface field of a 3-D grid: the parameter of \"field_id\" is wrong. Please verify the model code with the annotation \"%s.", API_label, annotation);
-        EXECUTION_REPORT(REPORT_ERROR, comp_id, comp_id == memory_manager->get_field_instance(*field_id)->get_comp_id(), "Error happens when calling the API \"%s\" to set the surface field of a 3-D grid: the components corresponding to the parameters of \"grid_id\" and \"field_id\" are different. Please verify the model code with the annotation \"%s.", API_label, annotation);
+        EXECUTION_REPORT(REPORT_ERROR, comp_id, memory_manager->check_is_legal_field_instance_id(*field_id), "Error happens when calling the API \"%s\" to set the surface field of a 3-D grid: the parameter of \"field_id\" is wrong. Please verify the model code with the annotation \"%s\".", API_label, annotation);
+        EXECUTION_REPORT(REPORT_ERROR, comp_id, comp_id == memory_manager->get_field_instance(*field_id)->get_comp_id(), "Error happens when calling the API \"%s\" to set the surface field of a 3-D grid: the components corresponding to the parameters of \"grid_id\" and \"field_id\" are different. Please verify the model code with the annotation \"%s\".", API_label, annotation);
     }    
     check_for_coupling_registration_stage(comp_id, API_id, true, annotation);
     original_grid_mgr->set_3d_grid_bottom_field(comp_id, *grid_id, *field_id, *static_or_dynamic_or_external, API_id, API_label, annotation);
@@ -986,7 +987,7 @@ extern "C" void register_mid_point_grid_
 
     get_API_hint(-1, API_ID_GRID_MGT_REG_MID_POINT_GRID, API_label);    
     check_for_ccpl_managers_allocated(API_ID_GRID_MGT_REG_MID_POINT_GRID, annotation);
-    EXECUTION_REPORT(REPORT_ERROR, -1, original_grid_mgr->is_grid_id_legal(*level_3D_grid_id), "Error happens when calling the API \"%s\" to register the mid-point grid of a grid: the grid ID of the interface-level grid (level_3D_grid_id) is wrong. Please verify the model code with the annotation \"%s.", API_label, annotation);
+    EXECUTION_REPORT(REPORT_ERROR, -1, original_grid_mgr->is_grid_id_legal(*level_3D_grid_id), "Error happens when calling the API \"%s\" to register the mid-point grid of a grid: the grid ID of the interface-level grid (level_3D_grid_id) is wrong. Please verify the model code with the annotation \"%s\".", API_label, annotation);
     check_for_coupling_registration_stage(original_grid_mgr->get_comp_id_of_grid(*level_3D_grid_id), API_ID_GRID_MGT_REG_MID_POINT_GRID, true, annotation);
     original_grid_mgr->register_mid_point_grid(*level_3D_grid_id, mid_3D_grid_id, mid_1D_grid_id, *size_mask, mask, annotation, API_label);
 
@@ -1044,11 +1045,11 @@ extern "C" void get_h2d_grid_data_
 
     check_for_ccpl_managers_allocated(API_ID_GRID_MGT_GET_H2D_GRID_DATA, annotation);
     get_API_hint(-1, API_ID_GRID_MGT_GET_H2D_GRID_DATA, API_label);
-    EXECUTION_REPORT(REPORT_ERROR, -1, original_grid_mgr->is_grid_id_legal(*grid_id), "Error happens when calling the API \"%s\" to get the grid data of an H2D grid: the parameter of \"grid_id\" is wrong. Please verify the model code with the annotation \"%s.", API_label, annotation);
-    EXECUTION_REPORT(REPORT_ERROR, original_grid_mgr->get_comp_id_of_grid(*grid_id), original_grid_mgr->get_original_grid(*grid_id)->is_H2D_grid(), "Error happens when calling the API \"%s\" to get the grid data of an H2D grid: the grid \"%s\" is not an H2D grid. Please verify the model code with the annotation \"%s.", API_label, original_grid_mgr->get_original_grid(*grid_id)->get_grid_name(), annotation);
-    EXECUTION_REPORT(REPORT_ERROR, original_grid_mgr->get_comp_id_of_grid(*grid_id), *decomp_id == -1 || decomps_info_mgr->is_decomp_id_legal(*decomp_id), "Error happens when calling the API \"%s\" to get the grid data of an H2D grid: the decomp_id is wrong (must be -1 or a legal decomp_id). Please verify the model code with the annotation \"%s.", API_label, annotation);
+    EXECUTION_REPORT(REPORT_ERROR, -1, original_grid_mgr->is_grid_id_legal(*grid_id), "Error happens when calling the API \"%s\" to get the grid data of an H2D grid: the parameter of \"grid_id\" is wrong. Please verify the model code with the annotation \"%s\".", API_label, annotation);
+    EXECUTION_REPORT(REPORT_ERROR, original_grid_mgr->get_comp_id_of_grid(*grid_id), original_grid_mgr->get_original_grid(*grid_id)->is_H2D_grid(), "Error happens when calling the API \"%s\" to get the grid data of an H2D grid: the grid \"%s\" is not an H2D grid. Please verify the model code with the annotation \"%s\".", API_label, original_grid_mgr->get_original_grid(*grid_id)->get_grid_name(), annotation);
+    EXECUTION_REPORT(REPORT_ERROR, original_grid_mgr->get_comp_id_of_grid(*grid_id), *decomp_id == -1 || decomps_info_mgr->is_decomp_id_legal(*decomp_id), "Error happens when calling the API \"%s\" to get the grid data of an H2D grid: the decomp_id is wrong (must be -1 or a legal decomp_id). Please verify the model code with the annotation \"%s\".", API_label, annotation);
     if (*decomp_id != -1)
-        EXECUTION_REPORT(REPORT_ERROR, original_grid_mgr->get_comp_id_of_grid(*grid_id), original_grid_mgr->get_comp_id_of_grid(*grid_id) == decomps_info_mgr->get_decomp_info(*decomp_id)->get_comp_id(), "Error happens when calling the API \"%s\" to get the grid data of an H2D grid: the grid_id and decomp_id do not correspond to the same component model. Please verify the model code with the annotation \"%s.", API_label, annotation);
+        EXECUTION_REPORT(REPORT_ERROR, original_grid_mgr->get_comp_id_of_grid(*grid_id), original_grid_mgr->get_comp_id_of_grid(*grid_id) == decomps_info_mgr->get_decomp_info(*decomp_id)->get_comp_id(), "Error happens when calling the API \"%s\" to get the grid data of an H2D grid: the grid_id and decomp_id do not correspond to the same component model. Please verify the model code with the annotation \"%s\".", API_label, annotation);
     original_grid_mgr->get_original_grid(*grid_id)->get_grid_data(*decomp_id, label, data_type, *array_size, grid_data, annotation, API_label);
 }
 

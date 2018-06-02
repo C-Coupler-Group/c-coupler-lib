@@ -1448,7 +1448,6 @@
 
  SUBROUTINE CCPL_allreduce_real16(input_data, output_data, num_data, comm, num_proc)
    implicit none
-   include 'mpif.h'
    real(R16)         :: input_data(:), output_data(:)
    integer           :: num_data, comm
    integer           :: ierr
@@ -2693,7 +2692,6 @@
 
    SUBROUTINE CCPL_finalize(to_finalize_MPI, annotation)
    implicit none
-   include 'mpif.h'
    logical,          intent(in)                :: to_finalize_MPI
    integer                                     :: local_to_finalize_MPI
    character(len=*), intent(in), optional      :: annotation
