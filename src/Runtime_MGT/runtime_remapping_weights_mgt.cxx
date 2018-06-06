@@ -132,7 +132,8 @@ Runtime_remapping_weights::Runtime_remapping_weights(const char *src_comp_full_n
         for (int i = 0; i < dst_decomp_info->get_num_global_cells(); i ++)
             H2D_grid_decomp_mask[i] = false;
         for (int i = 0; i < dst_decomp_info->get_num_local_cells(); i ++)
-            H2D_grid_decomp_mask[dst_decomp_info->get_local_cell_global_indx()[i]] = true;
+        	if (dst_decomp_info->get_local_cell_global_indx()[i] != CCPL_NULL_INT)
+                H2D_grid_decomp_mask[dst_decomp_info->get_local_cell_global_indx()[i]] = true;
         sequential_remapping_weights = new Remap_weight_of_strategy_class(remap_weight_name, remapping_strategy, src_original_grid->get_original_CoR_grid(), dst_original_grid->get_original_CoR_grid(), NULL);
         delete [] H2D_grid_decomp_mask;
         H2D_grid_decomp_mask = NULL;
@@ -238,12 +239,12 @@ void Runtime_remapping_weights::generate_parallel_remapping_weights()
     for (j = 0; j < decomp_original_grids[0]->get_grid_size(); j ++)
         global_cells_local_indexes_in_decomps[0][j] = -1;
     for (j = 0; j < src_decomp_info->get_num_local_cells(); j ++)
-        if (src_decomp_info->get_local_cell_global_indx()[j] >= 0)
+        if (src_decomp_info->get_local_cell_global_indx()[j] != CCPL_NULL_INT)
             global_cells_local_indexes_in_decomps[0][src_decomp_info->get_local_cell_global_indx()[j]] = j;
     for (j = 0; j < decomp_original_grids[1]->get_grid_size(); j ++)
         global_cells_local_indexes_in_decomps[1][j] = -1;
     for (j = 0; j < dst_decomp_info->get_num_local_cells(); j ++)
-        if (dst_decomp_info->get_local_cell_global_indx()[j] >= 0)
+        if (dst_decomp_info->get_local_cell_global_indx()[j] != CCPL_NULL_INT)
             global_cells_local_indexes_in_decomps[1][dst_decomp_info->get_local_cell_global_indx()[j]] = j;  
     parallel_remapping_weights = sequential_remapping_weights->generate_parallel_remap_weights(remap_related_decomp_grids, decomp_original_grids, global_cells_local_indexes_in_decomps);
     dynamic_V1D_remap_weight_of_operator = parallel_remapping_weights->get_dynamic_V1D_remap_weight_of_operator();

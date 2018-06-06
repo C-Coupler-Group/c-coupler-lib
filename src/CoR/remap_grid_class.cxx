@@ -3138,7 +3138,9 @@ void Remap_grid_class::generate_3D_grid_decomp_sigma_values(Remap_grid_class *or
         }
         
     for (int i = 0; i < num_local_cells; i ++)
-        local_sigma_grid_surface_values[i] = ((double*)(original_3D_grid->sigma_grid_surface_value_field->get_grid_data_field()->data_buf))[local_cell_indexes[i]];
+        if (local_cell_indexes[i] != CCPL_NULL_INT)
+            local_sigma_grid_surface_values[i] = ((double*)(original_3D_grid->sigma_grid_surface_value_field->get_grid_data_field()->data_buf))[local_cell_indexes[i]];
+        else local_sigma_grid_surface_values[i] = NULL_COORD_VALUE;
 }
 
 

@@ -1176,13 +1176,17 @@ int Inout_interface::get_h2d_grid_area_in_remapping_weights(const char *interfac
     if (words_are_the_same(data_type, DATA_TYPE_FLOAT)) {
         float *float_output_area = (float*) output_area_data;
         for (i = 0; i < decomp_info->get_num_local_cells(); i ++) {
-            float_output_area[i] = (float) (selected_area_array_in_wgts[local_cells_global_index[i]]);
+        	if (local_cells_global_index[i] != CCPL_NULL_INT)
+                float_output_area[i] = (float) (selected_area_array_in_wgts[local_cells_global_index[i]]);
+        	else float_output_area[i] = NULL_COORD_VALUE;
         }
     }
     else if (words_are_the_same(data_type, DATA_TYPE_DOUBLE)) {
         double *double_output_area = (double*) output_area_data;
         for (i = 0; i < decomp_info->get_num_local_cells(); i ++)
-            double_output_area[i] = selected_area_array_in_wgts[local_cells_global_index[i]];
+        	if (local_cells_global_index[i] != CCPL_NULL_INT)
+                double_output_area[i] = selected_area_array_in_wgts[local_cells_global_index[i]];
+        	else double_output_area[i] = NULL_COORD_VALUE;
     }
     else EXECUTION_REPORT(REPORT_ERROR, -1, false, "Software error in Inout_interface::get_h2d_grid_area_in_remapping_weights: wrong data type");
 

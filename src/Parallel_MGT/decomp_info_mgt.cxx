@@ -134,9 +134,8 @@ Decomp_info *Decomp_info_mgt::generate_remap_weights_src_decomp(Decomp_info *dst
     for (i = 0; i < dst_decomp_info->get_num_global_cells(); i ++)
         decomp_map_dst[i] = 0;
     for (j = 0; j < dst_decomp_info->get_num_local_cells(); j ++)
-        if (dst_decomp_info->get_local_cell_global_indx()[j] >= 0)
-            if (dst_decomp_info->get_local_cell_global_indx()[j] != CCPL_NULL_INT)
-                decomp_map_dst[dst_decomp_info->get_local_cell_global_indx()[j]] = 1;
+        if (dst_decomp_info->get_local_cell_global_indx()[j] != CCPL_NULL_INT)
+            decomp_map_dst[dst_decomp_info->get_local_cell_global_indx()[j]] = 1;
     EXECUTION_REPORT_LOG(REPORT_LOG, dst_decomp_info->get_comp_id(), true, "before calculate_src_decomp for grid %s", src_original_grid->get_H2D_sub_CoR_grid()->get_grid_name());
     remap_weights->calculate_src_decomp(src_original_grid->get_H2D_sub_CoR_grid(), dst_original_grid->get_H2D_sub_CoR_grid(), decomp_map_src, decomp_map_dst);
     EXECUTION_REPORT_LOG(REPORT_LOG, dst_decomp_info->get_comp_id(), true, "after calculate_src_decomp for grid %s", src_original_grid->get_H2D_sub_CoR_grid()->get_grid_name());
