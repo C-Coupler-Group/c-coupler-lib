@@ -31,6 +31,13 @@
 #define TIMING_IO_OUTPUT                 22
 #define TIMING_IO_RESTART                23
 
+#define TIMING_COMPUTATION_ALL           31
+#define TIMING_COMPUTATION_H2D_REMAP     32
+#define TIMING_COMPUTATION_V1D_REMAP     33
+#define TIMING_COMPUTATION_V1D_WEIGHT    34
+#define TIMING_COMPUTATION_V1D_COORD     35
+
+
 
 class Performance_timing_unit
 {

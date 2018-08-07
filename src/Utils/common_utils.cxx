@@ -336,6 +336,8 @@ long get_restart_time_in_rpointer_file(const char *file_name)
     EXECUTION_REPORT(REPORT_ERROR, -1, line[special_pos-9] == '.' && line[special_pos-10] == 'r', "Error happens in a continue run: the restart file name \"%s\" in the rpointer file \"%s\" is not in a right format", file_name);
     strncpy(date_str, line+special_pos-8, 8);
     strncpy(second_str, line+special_pos+1, 5);
+	date_str[8] = '\0';
+	second_str[5] = '\0';
     EXECUTION_REPORT(REPORT_ERROR, -1, sscanf(date_str, "%d", &date) == 1, "Error happens in a continue run: the restart file name \"%s\" in the rpointer file \"%s\" is not in a right format", file_name);
     EXECUTION_REPORT(REPORT_ERROR, -1, sscanf(second_str, "%d", &second) == 1, "Error happens in a continue run: the restart file name \"%s\" in the rpointer file \"%s\" is not in a right format", file_name);
 

@@ -271,7 +271,7 @@ void Remap_strategy_class::remap_fields(const char *field_data_name_src, const c
     }
 
     remap_weight_of_strategy = remap_weights_of_strategy_manager->search_or_add_remap_weight_of_strategy(remap_src_data_grid, remap_dst_data_grid, this, NULL, NULL, NULL, false);
-    remap_weight_of_strategy->do_remap(field_data_src, field_data_dst);
+    remap_weight_of_strategy->do_remap(-1, field_data_src, field_data_dst);
 }
 
 

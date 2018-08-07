@@ -66,7 +66,9 @@ void Runtime_remap_algorithm::do_remap(bool is_algorithm_in_kernel_stage)
         for (int i = 0; i < specified_src_field_instance->get_size_of_field(); i ++)
             ((double*)true_src_field_instance->get_data_buf())[i] = ((float*)specified_src_field_instance->get_data_buf())[i];
     runtime_remapping_weights->renew_dynamic_V1D_remapping_weights();
-    runtime_remapping_weights->get_parallel_remapping_weights()->do_remap(true_src_field_instance->get_field_data(), true_dst_field_instance->get_field_data());
+    comp_comm_group_mgt_mgr->get_global_node_of_local_comp(runtime_remapping_weights->get_dst_original_grid()->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, "remapping cal");
+    runtime_remapping_weights->get_parallel_remapping_weights()->do_remap(runtime_remapping_weights->get_dst_original_grid()->get_comp_id(), true_src_field_instance->get_field_data(), true_dst_field_instance->get_field_data());
+    comp_comm_group_mgt_mgr->get_global_node_of_local_comp(runtime_remapping_weights->get_dst_original_grid()->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, "remapping cal");
     if (transform_data_type)
         for (int i = 0; i < specified_dst_field_instance->get_size_of_field(); i ++)
             ((float*)specified_dst_field_instance->get_data_buf())[i] = ((double*)true_dst_field_instance->get_data_buf())[i];

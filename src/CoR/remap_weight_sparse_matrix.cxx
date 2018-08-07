@@ -135,7 +135,7 @@ void Remap_weight_sparse_matrix::add_weights(long *indexes_src, long index_dst, 
 
 void Remap_weight_sparse_matrix::get_weight(long *index_src, long *index_dst, double *weight_value, int index_weight)
 {
-    EXECUTION_REPORT(REPORT_ERROR, -1, index_weight >= 0 && index_weight < num_weights, "software error when get remapping weight of sparse matrix\n");
+    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, index_weight >= 0 && index_weight < num_weights, "software error when get remapping weight of sparse matrix\n");
     *index_src = cells_indexes_src[index_weight];
     *index_dst = cells_indexes_dst[index_weight];
     *weight_value = weight_values[index_weight];

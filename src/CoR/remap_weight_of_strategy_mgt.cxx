@@ -70,7 +70,7 @@ void Remap_weight_of_strategy_mgt::execute(const char*function, Remap_statement_
         remap_weights = remap_weights_of_strategy_manager->search_remap_weight_of_strategy(statement_operands[0]->object->object_name);
         field_data_src = remap_field_data_manager->search_remap_field_data(statement_operands[1]->object->object_name);
         field_data_dst = remap_field_data_manager->search_remap_field_data(statement_operands[2]->object->object_name);
-        remap_weights->do_remap(field_data_src, field_data_dst);
+        remap_weights->do_remap(-1, field_data_src, field_data_dst);
     }
     else if (words_are_the_same(function, FUNCTION_WORD_READ_REMAP_WEIGHTS)) {
         EXECUTION_REPORT(REPORT_ERROR, -1, num_operands == 6, "function \"%s\" must have one result parameter and five input parameters\n", function);

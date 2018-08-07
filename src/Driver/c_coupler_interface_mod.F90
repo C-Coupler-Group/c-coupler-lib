@@ -29,7 +29,7 @@
    public :: CCPL_register_IO_fields_from_field_instances 
    public :: CCPL_get_number_of_current_step 
    public :: CCPL_get_number_of_total_steps 
-   public :: CCPL_normal_time_step
+   public :: CCPL_get_normal_time_step
    public :: CCPL_is_first_step
    public :: CCPL_is_first_restart_step
    public :: CCPL_get_current_num_days_in_year
@@ -1146,7 +1146,7 @@
 
 
 
- integer FUNCTION CCPL_normal_time_step(comp_id, annotation)
+ integer FUNCTION CCPL_get_normal_time_step(comp_id, annotation)
    implicit none  
    integer, intent(in) :: comp_id
    character(len=*), intent(in), optional :: annotation
@@ -1157,9 +1157,9 @@
    else 
       call get_ccpl_time_step(comp_id, step_size, trim("")//char(0))
    endif
-   CCPL_normal_time_step = step_size
+   CCPL_get_normal_time_step = step_size
 
- END FUNCTION CCPL_normal_time_step
+ END FUNCTION CCPL_get_normal_time_step
 
 
 
@@ -2800,7 +2800,7 @@
    if (present(annotation)) local_annotation = annotation
 
    call register_frac_based_remap_interface(trim(interface_name)//char(0), interface_id, num_field_instances, field_instance_IDs_source, field_instance_IDs_target, timer_ID, &
-                                            inst_or_aver, size(field_instance_IDs_source), size(field_instance_IDs_target), frac_src, temp_frac_dst, size(frac_src), &
+                                            inst_or_aver, size(field_instance_IDs_source), size(field_instance_IDs_target), loc(frac_src), loc(temp_frac_dst), size(frac_src), &
                                             size_frac_dst, trim("real4")//char(0), trim(local_annotation)//char(0))
 
    deallocate(temp_float_1d)
@@ -2838,7 +2838,7 @@
    if (present(annotation)) local_annotation = annotation
 
    call register_frac_based_remap_interface(trim(interface_name)//char(0), interface_id, num_field_instances, field_instance_IDs_source, field_instance_IDs_target, timer_ID, &
-                                            inst_or_aver, size(field_instance_IDs_source), size(field_instance_IDs_target), frac_src, temp_frac_dst, size(frac_src), &
+                                            inst_or_aver, size(field_instance_IDs_source), size(field_instance_IDs_target), loc(frac_src), loc(temp_frac_dst), size(frac_src), &
                                             size_frac_dst, trim("real8")//char(0), trim(local_annotation)//char(0))
 
    deallocate(temp_double_1d)

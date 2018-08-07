@@ -1567,7 +1567,7 @@ void Coupling_generator::do_external_coupling_generation(int API_id, const char 
 
     if (current_proc_id_in_union_comm == 0) {        
         for (int i = 0; i < all_comp_fullnames_for_coupling_generation.size(); i ++)
-            printf("comp for external generation %s at proc %d\n", all_comp_fullnames_for_coupling_generation[i], current_proc_id_in_union_comm);
+            EXECUTION_REPORT_LOG(REPORT_ERROR, -1, true, "comp for external generation %s at proc %d\n", all_comp_fullnames_for_coupling_generation[i], current_proc_id_in_union_comm);
     }
     generate_coupling_procedures_common(API_id, union_comm, false, annotation);
 

@@ -333,10 +333,6 @@ void Restart_mgt::write_restart_field_data(Field_mem_info *field_instance, const
         EXECUTION_REPORT_LOG(REPORT_LOG, comp_node->get_comp_id(), true, "Write variable \"%s\" into restart data file \"%s\"", global_field->get_field_data()->get_grid_data_field()->field_name_in_IO_file, active_restart_write_data_file->get_file_name());
         active_restart_write_data_file->write_grided_data(global_field->get_field_data(), true, -1, -1, true);
         sprintf(hint, "restart writing field \"%s\" to the file \"%s\"", field_IO_name, active_restart_write_data_file->get_file_name());
-        if (words_are_the_same(field_IO_name, "V3D_grid_bottom_field.receive_from_OCN.imported.   4033114400")) {
-            for (int i = 0; i < global_field->get_size_of_field(); i ++)
-                EXECUTION_REPORT_LOG(REPORT_LOG, comp_node->get_comp_id(), true, "detailed value of V3D_grid_bottom_field.receive_from_OCN.imported.\ \ \ 4033114400 at %d is %0.25lf", i, ((double*)global_field->get_data_buf())[i]);
-        }
     }
     else sprintf(hint, "restart writing field \"%s\" to the file", field_IO_name);
     field_instance->check_field_sum(hint);

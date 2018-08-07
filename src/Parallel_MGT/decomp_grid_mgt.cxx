@@ -70,7 +70,7 @@ Decomp_grid_info::Decomp_grid_info(int decomp_id, Remap_grid_class *original_gri
                 remap_grid_manager->add_temp_grid(sub_grids[num_sub_grids-1]);
             }
         }
-        sprintf(decomp_grid_name, "DECOMP_GRID_%s_%d", original_grid->get_grid_name(), comp_id);
+        sprintf(decomp_grid_name, "%s_at_DECOMP_%s", original_grid->get_grid_name(), decomp->get_decomp_name());
         EXECUTION_REPORT_LOG(REPORT_LOG, decomp->get_host_comp_id(), true, "Generate decomp grid \"%s\" based on H2D grid \"%s\" %lx", decomp_grid_name, decomp_2D_grid->get_grid_name(), decomp_2D_grid);
         this->decomp_grid = new Remap_grid_class(decomp_grid_name, num_sub_grids, sub_grids, 0);
         this->decomp_grid->set_decomp_name(decomp_name);

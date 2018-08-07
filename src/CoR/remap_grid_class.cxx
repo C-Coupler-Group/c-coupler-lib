@@ -186,7 +186,7 @@ Remap_grid_class::Remap_grid_class(Remap_grid_class *field_data_grid,
     this->num_dimensions = num_leaf_grids_field_data;
     this->grid_size = field_data_grid->grid_size / remap_src_grid->grid_size * remap_dst_grid->grid_size;
     this->enable_to_set_coord_values = false;
-    sprintf(this->grid_name, "TEMP_GRID_FIELD_DATA_DST %s from %s to %s\0", field_data_grid->grid_name, remap_src_grid->grid_name, remap_dst_grid->grid_name);
+    sprintf(this->grid_name, "REMAP_DST %s from %s to %s\0", field_data_grid->grid_name, remap_src_grid->grid_name, remap_dst_grid->grid_name);
     for (i = 0; i < num_leaf_grids_field_data; i ++)
         sub_grids.push_back(leaf_grids_field_data[i]);
     get_sized_sub_grids(&num_sized_grids_field_data, sized_grids_field_data);
@@ -313,16 +313,20 @@ void Remap_grid_class::generate_interchange_grids(Remap_grid_class *remap_grid,
             size_grids_interchange[num_size_grids_interchange++] = size_grids_this[i];
     }
 
-    sprintf(new_grid_name, "%s", "TEMP_GRID_INTERCHANGE");
-    for (i = 0; i < num_size_grids_interchange; i ++)
-        sprintf(new_grid_name, "%s_%s", new_grid_name, size_grids_interchange[i]->get_grid_name());
-    *interchange_grid = new Remap_grid_class(new_grid_name, num_size_grids_interchange, size_grids_interchange, 0);
+    *interchange_grid = new Remap_grid_class(grid_name, num_size_grids_interchange, size_grids_interchange, 0);
     existing_grid = remap_grid_manager->search_same_remap_grid(*interchange_grid);
     if (existing_grid != NULL) {
         delete *interchange_grid;
         *interchange_grid = existing_grid;
     }
-    else remap_grid_manager->add_temp_grid(*interchange_grid);
+    else {
+		remap_grid_manager->add_temp_grid(*interchange_grid);
+		sprintf(new_grid_name, "%s_INTERCHANGE", grid_name);
+		(*interchange_grid)->get_leaf_grids(&num_leaf_grids_remap, leaf_grids_remap, *interchange_grid);
+		for (i = 0; i < num_leaf_grids_remap; i ++)
+			sprintf(new_grid_name, "%s_%s", new_grid_name, leaf_grids_remap[i]->get_coord_label());
+		strcpy((*interchange_grid)->grid_name, new_grid_name);
+    }
     
     EXECUTION_REPORT(REPORT_ERROR, -1, this->is_similar_grid_with(*interchange_grid), "remap software error2 when generating interchange grids\n");
 }
@@ -807,7 +811,6 @@ void Remap_grid_class::gen_lev_coord_from_sigma_or_hybrid(char extension_names[1
     this->sigma_grid_surface_value_field_specified = true;
     allocate_sigma_grid_specific_fields(hybrid_grid_coefficient, lev_sigma_coord, field_lev_coord_bot, data_top, scale_factor);
     calculate_lev_sigma_values();
-    get_a_leaf_grid(COORD_LABEL_LEV)->super_grid_of_setting_coord_values = this;
 }
 
 
@@ -3035,7 +3038,7 @@ Remap_grid_class *Remap_grid_class::generate_decomp_grid(const int *local_cell_i
         decomp_leaf_grids[0] = new Remap_grid_class(leaf_grids[0]->grid_name, leaf_grids[0]->coord_label, leaf_grids[0]->coord_unit, COORD_BOUND_CYCLIC, 0);
     else decomp_leaf_grids[0] = new Remap_grid_class(leaf_grids[0]->grid_name, leaf_grids[0]->coord_label, leaf_grids[0]->coord_unit, COORD_BOUND_ACYCLIC, 0);
     decomp_leaf_grids[1] = new Remap_grid_class(leaf_grids[1]->grid_name, leaf_grids[1]->coord_label, leaf_grids[1]->coord_unit, COORD_BOUND_ACYCLIC, 0);
-    sprintf(decomp_grid_name, "DECOMP_GRID_%s_at_%s", grid_name, decomp_name);
+    sprintf(decomp_grid_name, "%s_at_DECOMP_%s", grid_name, decomp_name);
     decomp_grid = new Remap_grid_class(decomp_grid_name, 2, decomp_leaf_grids, num_local_cells);
     decomp_leaf_grids[0]->super_grid_of_setting_coord_values = decomp_grid;
     decomp_leaf_grids[1]->super_grid_of_setting_coord_values = decomp_grid;
@@ -3262,6 +3265,7 @@ void Remap_grid_class::write_grid_name_into_array(Remap_grid_class *grid, char *
 Remap_grid_class *Remap_grid_class::get_linked_grid_from_array(Remap_grid_class *top_grid, const char *grid_name_suffix, char *temp_grid_name)
 {
     if (!words_are_the_same(temp_grid_name, "NULL")) {
+		strcat(temp_grid_name, "_FROM_");
         strcat(temp_grid_name, grid_name_suffix);
         if (words_are_the_same(this->grid_name, temp_grid_name))
             return this;
@@ -3343,6 +3347,7 @@ Remap_grid_class::Remap_grid_class(Remap_grid_class *top_grid, const char *grid_
     initialize_grid_class_data();
 
     read_data_from_array_buffer(grid_name, NAME_STR_SIZE, array, buffer_content_iter, true);
+	strcat(grid_name, "_FROM_");
     strcat(grid_name, grid_name_suffix);
     if (remap_grid_manager->search_remap_grid_with_grid_name(grid_name) == NULL)
         remap_grid_manager->add_remap_grid(this);

@@ -598,7 +598,7 @@ void Comp_comm_group_mgt_node::get_all_descendant_real_comp_fullnames(int top_co
         }
         if (current_proc_local_id == 0)
             for (int i = 0; i < all_descendant_real_comp_fullnames.size(); i ++)
-                printf("%x comp %d for internal generation %s\n", top_comp_id, i, all_descendant_real_comp_fullnames[i]);
+                EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "%x comp %d for internal generation %s\n", top_comp_id, i, all_descendant_real_comp_fullnames[i]);
     }
 }
 

@@ -70,8 +70,8 @@ Field_mem_info::Field_mem_info(const char *field_name, int decomp_id, int comp_o
             dimensions_match_grid = decomp_id != -1 && remap_grid_grid != NULL && remap_grid_grid->get_num_dimensions() == 3;
         if (!dimensions_match_grid) {
             if (grid_id != -1)
-                EXECUTION_REPORT(REPORT_ERROR, comp_id, false, "Error happens when calling the API \"CCPL_register_field_instance\" to register a field instance of \"%s\" at the model code with the annotation \"%s\": the dimension information (\"%s\") of the field does not match the dimensions of the corresponding grid \"%s\"", field_name, annotation, field_attributes->field_dim, original_grid_mgr->get_name_of_grid(grid_id));
-            else EXECUTION_REPORT(REPORT_ERROR, comp_id, false, "Error happens when calling the API \"CCPL_register_field_instance\" to register a field instance of \"%s\": the dimension information (\"%s\") of the field does not match the dimensions of the corresponding empty grid", field_name, annotation, field_attributes->field_dim);
+                EXECUTION_REPORT(REPORT_ERROR, comp_id, false, "Error happens when calling the API \"CCPL_register_field_instance\" to register a field instance of \"%s\" at the model code with the annotation \"%s\": the dimension information (\"%s\") of the field that is specified in a configuration file does not match the dimensions of the corresponding grid \"%s\"", field_name, annotation, field_attributes->field_dim, original_grid_mgr->get_name_of_grid(grid_id));
+            else EXECUTION_REPORT(REPORT_ERROR, comp_id, false, "Error happens when calling the API \"CCPL_register_field_instance\" to register a field instance of \"%s\": the dimension information (\"%s\") of the field that is specified in a configuration file does not match the dimensions of the corresponding empty grid", field_name, annotation, field_attributes->field_dim);
         }
     }    
 

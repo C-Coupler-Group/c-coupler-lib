@@ -332,19 +332,25 @@ void Connection_coupling_procedure::execute(bool bypass_timer, int *field_update
                 runtime_data_transfer_algorithm->run(bypass_timer);
                 comp_comm_group_mgt_mgr->get_global_node_of_local_comp(inout_interface->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, inout_interface->get_interface_name());
                 for (int i = fields_mem_registered.size() - 1; i >= 0; i --) {
+                        comp_comm_group_mgt_mgr->get_global_node_of_local_comp(inout_interface->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, "data interpolation");
                         if (runtime_remap_algorithms[i] != NULL)
                             runtime_remap_algorithms[i]->run(true);
+                        comp_comm_group_mgt_mgr->get_global_node_of_local_comp(inout_interface->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, "data interpolation");
+                        comp_comm_group_mgt_mgr->get_global_node_of_local_comp(inout_interface->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, "data type transformation");
                         if (runtime_datatype_transform_algorithms[i] != NULL)
                             runtime_datatype_transform_algorithms[i]->run(true);                                
+                        comp_comm_group_mgt_mgr->get_global_node_of_local_comp(inout_interface->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, "data type transformation");
+                        comp_comm_group_mgt_mgr->get_global_node_of_local_comp(inout_interface->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, "data average");
                         if (runtime_inter_averaging_algorithm[i] != NULL)
                             runtime_inter_averaging_algorithm[i]->run(true);
+                        comp_comm_group_mgt_mgr->get_global_node_of_local_comp(inout_interface->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, "data average");
                 }
+                comp_comm_group_mgt_mgr->get_global_node_of_local_comp(inout_interface->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, inout_interface->get_interface_name());
                 if (!bypass_timer && !inout_interface->get_is_child_interface() && (restart_mgr->is_in_restart_write_window(current_remote_fields_time, true))) {
                     EXECUTION_REPORT_LOG(REPORT_LOG, inout_interface->get_comp_id(), true, "Should write the remote data at the remote time %ld and local %ld into the restart data file", current_remote_fields_time, time_mgr->get_current_num_elapsed_day()*((long)100000)+time_mgr->get_current_second());
                     for (int i = 0; i < fields_mem_registered.size(); i ++)
                         restart_mgr->write_restart_field_data(fields_mem_registered[i], inout_interface->get_interface_name(), "imported", true);
                 }
-                comp_comm_group_mgt_mgr->get_global_node_of_local_comp(inout_interface->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, inout_interface->get_interface_name());
             }
         }
         finish_status = true;
@@ -1176,17 +1182,17 @@ int Inout_interface::get_h2d_grid_area_in_remapping_weights(const char *interfac
     if (words_are_the_same(data_type, DATA_TYPE_FLOAT)) {
         float *float_output_area = (float*) output_area_data;
         for (i = 0; i < decomp_info->get_num_local_cells(); i ++) {
-        	if (local_cells_global_index[i] != CCPL_NULL_INT)
+            if (local_cells_global_index[i] != CCPL_NULL_INT)
                 float_output_area[i] = (float) (selected_area_array_in_wgts[local_cells_global_index[i]]);
-        	else float_output_area[i] = NULL_COORD_VALUE;
+            else float_output_area[i] = NULL_COORD_VALUE;
         }
     }
     else if (words_are_the_same(data_type, DATA_TYPE_DOUBLE)) {
         double *double_output_area = (double*) output_area_data;
         for (i = 0; i < decomp_info->get_num_local_cells(); i ++)
-        	if (local_cells_global_index[i] != CCPL_NULL_INT)
+            if (local_cells_global_index[i] != CCPL_NULL_INT)
                 double_output_area[i] = selected_area_array_in_wgts[local_cells_global_index[i]];
-        	else double_output_area[i] = NULL_COORD_VALUE;
+            else double_output_area[i] = NULL_COORD_VALUE;
     }
     else EXECUTION_REPORT(REPORT_ERROR, -1, false, "Software error in Inout_interface::get_h2d_grid_area_in_remapping_weights: wrong data type");
 

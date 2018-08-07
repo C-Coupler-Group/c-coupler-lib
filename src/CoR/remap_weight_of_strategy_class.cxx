@@ -13,6 +13,8 @@
 #include "remap_operator_basis.h"
 #include "io_binary.h"
 #include "io_netcdf.h"
+#include "performance_timing_mgt.h"
+#include "global_data.h"
 #include <string.h>
 
 
@@ -196,7 +198,7 @@ Remap_weight_of_operator_class::~Remap_weight_of_operator_class()
 }
 
 
-void Remap_weight_of_operator_class::do_remap(Remap_grid_data_class *field_data_src, Remap_grid_data_class *field_data_dst)
+void Remap_weight_of_operator_class::do_remap(int comp_id, Remap_grid_data_class *field_data_src, Remap_grid_data_class *field_data_dst)
 {
 
     double *data_value_src, *data_value_dst;
@@ -208,8 +210,13 @@ void Remap_weight_of_operator_class::do_remap(Remap_grid_data_class *field_data_
     
     EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, field_data_src->get_coord_value_grid()->is_similar_grid_with(field_data_grid_src), "C-Coupler error1 in do_remap of Remap_weight_of_operator_class");
     EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, field_data_dst->get_coord_value_grid()->is_similar_grid_with(field_data_grid_dst), "C-Coupler error2 in do_remap of Remap_weight_of_operator_class");
+
+    if (comp_id != -1)          
+        comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id,false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, "interchange data");
     field_data_src->interchange_grid_data(field_data_grid_src);
     field_data_dst->interchange_grid_data(field_data_grid_dst);
+    if (comp_id != -1)          
+        comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id,false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, "interchange data");
 
     field_data_size_src = field_data_src->get_grid_data_field()->read_data_size;
     field_data_size_dst = field_data_dst->get_grid_data_field()->read_data_size;
@@ -491,7 +498,7 @@ void Remap_weight_of_strategy_class::add_remap_weight_of_operator_instance(Remap
 }
 
 
-void Remap_weight_of_strategy_class::do_remap(Remap_grid_data_class *field_data_src, Remap_grid_data_class *field_data_dst)
+void Remap_weight_of_strategy_class::do_remap(int comp_id, Remap_grid_data_class *field_data_src, Remap_grid_data_class *field_data_dst)
 {
     Remap_grid_class *sized_sub_grids[256];
     Remap_grid_class *field_data_grid_src, *field_data_grid_dst;
@@ -519,6 +526,8 @@ void Remap_weight_of_strategy_class::do_remap(Remap_grid_data_class *field_data_
     tmp_field_data_dst = field_data_src;
     tmp_field_data_src = NULL;
     for (i = 0; i < remap_weights_of_operators.size(); i ++) {
+        if (comp_id != -1)        
+            comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id,false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, remap_weights_of_operators[i]->get_original_remap_operator()->get_operator_name());
         if (tmp_field_data_src != NULL && tmp_field_data_src != field_data_src)
             delete tmp_field_data_src;
         tmp_field_data_src = tmp_field_data_dst;
@@ -528,14 +537,20 @@ void Remap_weight_of_strategy_class::do_remap(Remap_grid_data_class *field_data_
                          "remap software error1 in do_remap of Remap_weight_of_strategy_class\n");
         }    
         else tmp_field_data_dst = field_data_src->duplicate_grid_data_field(remap_weights_of_operators[i]->field_data_grid_dst, 1, false, false);
-        remap_weights_of_operators[i]->do_remap(tmp_field_data_src, tmp_field_data_dst);
+        remap_weights_of_operators[i]->do_remap(comp_id, tmp_field_data_src, tmp_field_data_dst);
+        if (comp_id != -1)        
+            comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id,false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, remap_weights_of_operators[i]->get_original_remap_operator()->get_operator_name());
     }
 
     if (tmp_field_data_src != NULL && tmp_field_data_src != field_data_src)
         delete tmp_field_data_src;
+    if (comp_id != -1)          
+        comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id,false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, "interchange data");
     field_data_src->interchange_grid_data(field_data_src->get_coord_value_grid());
     field_data_dst->interchange_grid_data(field_data_dst->get_coord_value_grid());
     field_data_dst->get_grid_data_field()->read_data_size = field_data_dst->get_grid_data_field()->required_data_size;
+    if (comp_id != -1)          
+        comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id,false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, "interchange data");
 }
 
 

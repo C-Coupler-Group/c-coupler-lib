@@ -13,6 +13,8 @@
 
 #include "common_utils.h"
 #include <vector>
+  
+#define INTERCHANGE_BLOCK_SIZE ((int)64*1024)
 
 
 class Remap_grid_class;

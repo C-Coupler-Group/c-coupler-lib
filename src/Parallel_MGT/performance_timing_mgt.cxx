@@ -107,7 +107,7 @@ void Performance_timing_unit::timing_output()
 //            printf("%s spends %lf seconds for data communication for data remapping in each process on average\n", compset_communicators_info_mgr->get_current_comp_name(), all_process_sum_time/num_procs);
     }
     else if (unit_type == TIMING_TYPE_COMPUTATION)
-        EXECUTION_REPORT(REPORT_CONSTANTLY, comp_id, true, "the component model \"%s\" spends %lf seconds for numerical algorithm %s at the current process\n", comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id,false,"")->get_full_name(), total_time, unit_char_keyword);
+        EXECUTION_REPORT(REPORT_CONSTANTLY, comp_id, true, "the component model \"%s\" spends %lf seconds for numerical algorithm \"%s\" at the current process\n", comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id,false,"")->get_full_name(), total_time, unit_char_keyword);
 }
 
 

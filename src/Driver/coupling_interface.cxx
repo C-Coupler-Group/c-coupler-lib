@@ -1450,7 +1450,7 @@ extern "C" void register_frac_based_remap_interface
 #else
 extern "C" void register_frac_based_remap_interface_
 #endif
-(const char *interface_name, int *interface_id, int *num_fields, int *field_ids_src, int *field_ids_dst, int *timer_id, int *inst_or_aver, int *array_size1, int *array_size2, void *frac_src, void *frac_dst, int *size_frac_src, int *size_frac_dst, const char *frac_data_type, const char *annotation)
+(const char *interface_name, int *interface_id, int *num_fields, int *field_ids_src, int *field_ids_dst, int *timer_id, int *inst_or_aver, int *array_size1, int *array_size2, long *frac_src, long *frac_dst, int *size_frac_src, int *size_frac_dst, const char *frac_data_type, const char *annotation)
 {
     char API_label[NAME_STR_SIZE];
     
@@ -1460,7 +1460,7 @@ extern "C" void register_frac_based_remap_interface_
     check_for_ccpl_managers_allocated(API_ID_INTERFACE_REG_FRAC_REMAP, annotation);        
     check_API_parameter_string_length(-1, API_ID_INTERFACE_REG_FRAC_REMAP, CCPL_NAME_STR_LEN, interface_name, "interface_name", annotation);
     get_API_hint(-1, API_ID_INTERFACE_REG_FRAC_REMAP, API_label);
-    *interface_id = inout_interface_mgr->register_frac_based_remap_interface(interface_name, *num_fields, field_ids_src, field_ids_dst, *timer_id, *inst_or_aver, *array_size1, *array_size2, frac_src, frac_dst, *size_frac_src, *size_frac_dst, frac_data_type, API_label, annotation);
+    *interface_id = inout_interface_mgr->register_frac_based_remap_interface(interface_name, *num_fields, field_ids_src, field_ids_dst, *timer_id, *inst_or_aver, *array_size1, *array_size2, (void*)(*frac_src), (void*)(*frac_dst), *size_frac_src, *size_frac_dst, frac_data_type, API_label, annotation);
 
     EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "Finish registering fraction based remap interface");
 }

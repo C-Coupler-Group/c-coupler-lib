@@ -71,7 +71,7 @@ class Remap_weight_of_operator_class
         Remap_grid_class *get_field_data_grid_dst() { return field_data_grid_dst; }
         void calculate_src_decomp(long*, const long*);
         Remap_weight_of_operator_class *generate_parallel_remap_weights(Remap_grid_class**, Remap_grid_class**, int **, int &, Remap_weight_of_strategy_class*);
-        void do_remap(Remap_grid_data_class*, Remap_grid_data_class*);
+        void do_remap(int, Remap_grid_data_class*, Remap_grid_data_class*);
         void add_remap_weight_of_operator_instance(Remap_weight_of_operator_instance_class *);
         Remap_operator_basis *get_original_remap_operator() { return original_remap_operator; }
         void renew_vertical_remap_weights(Remap_grid_class *runtime_remap_grid_src, Remap_grid_class *runtime_remap_grid_dst);
@@ -83,7 +83,7 @@ class Remap_weight_of_operator_class
 class Remap_weight_of_strategy_class
 {
     private:
-        char object_name[256];
+        char object_name[NAME_STR_SIZE];
         std::vector<Remap_weight_of_operator_class*> remap_weights_of_operators;
         Remap_grid_class *data_grid_src;
         Remap_grid_class *data_grid_dst;
@@ -116,7 +116,7 @@ class Remap_weight_of_strategy_class
         Remap_strategy_class *get_remap_strategy() { return remap_strategy; }
         Remap_operator_basis *get_unique_remap_operator_of_weights();
         Remap_weight_of_operator_instance_class *add_remap_weight_of_operator_instance(Remap_grid_class*, Remap_grid_class*, long, Remap_operator_basis*);
-        void do_remap(Remap_grid_data_class*, Remap_grid_data_class*);
+        void do_remap(int, Remap_grid_data_class*, Remap_grid_data_class*);
         void add_remap_weight_of_operator_instance(Remap_weight_of_operator_instance_class *);
         void calculate_src_decomp(Remap_grid_class*, Remap_grid_class*, long*, const long*);
         Remap_grid_class **get_remap_related_grids(int&);
