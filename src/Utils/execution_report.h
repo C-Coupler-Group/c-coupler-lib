@@ -28,6 +28,8 @@
 
 
 #define CCPL_NULL_INT                                   ((int)(0x7FFFFFFF))
+#define CCPL_NULL_LONG                                  ((long)(0x7FFFFFFFFFFFFFFF))
+
 
 extern bool report_external_log_enabled;
 extern bool report_error_enabled;

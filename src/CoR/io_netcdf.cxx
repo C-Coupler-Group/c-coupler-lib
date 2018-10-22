@@ -679,27 +679,30 @@ void IO_netcdf::write_remap_weights(Remap_weight_of_strategy_class *remap_weight
 
     EXECUTION_REPORT(REPORT_ERROR, -1, words_are_the_same(open_format, "w"), "can not write to netcdf file %s: %s, whose open format is not write\n", object_name, file_name);
     EXECUTION_REPORT(REPORT_ERROR, -1, remap_weights != NULL, "remap software error1 in write_remap_weights of netcdf file\n");
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, remap_grid_manager->search_remap_grid_with_grid_name(remap_weights->get_data_grid_src()->get_grid_name()) != NULL && remap_grid_manager->search_remap_grid_with_grid_name(remap_weights->get_data_grid_dst()->get_grid_name()) != NULL, "Software error in Remap_weight_of_operator_class::write_overall_remapping_weights");
 
-    remap_grid_src = remap_weights->get_data_grid_src();
-    remap_grid_dst = remap_weights->get_data_grid_dst();
+    remap_grid_src = remap_grid_manager->search_remap_grid_with_grid_name(remap_weights->get_data_grid_src()->get_grid_name());
+    remap_grid_dst = remap_grid_manager->search_remap_grid_with_grid_name(remap_weights->get_data_grid_dst()->get_grid_name());
 
-    EXECUTION_REPORT(REPORT_ERROR, -1, remap_grid_src->are_all_vertex_fields_specified_by_user(),
-                 "all vertex values of coordinates in src grid \"%s\" must have been set by users\n",
-                 remap_grid_src->get_grid_name());
-    EXECUTION_REPORT(REPORT_ERROR, -1, remap_grid_dst->are_all_vertex_fields_specified_by_user(),
-                 "all vertex values of coordinates in dst grid \"%s\" must have been set by users\n",
-                 remap_grid_dst->get_grid_name());    
-    
+	if (remap_weights->get_remap_strategy() != NULL) {
+	    EXECUTION_REPORT(REPORT_ERROR, -1, remap_grid_src->are_all_vertex_fields_specified_by_user(),
+	                 "all vertex values of coordinates in src grid \"%s\" must have been set by users\n",
+	                 remap_grid_src->get_grid_name());
+	    EXECUTION_REPORT(REPORT_ERROR, -1, remap_grid_dst->are_all_vertex_fields_specified_by_user(),
+	                 "all vertex values of coordinates in dst grid \"%s\" must have been set by users\n",
+	                 remap_grid_dst->get_grid_name());   
+	}
+
     EXECUTION_REPORT(REPORT_ERROR, -1, remap_weights->get_data_grid_src()->get_is_sphere_grid() &&
-                 remap_weights->get_remap_strategy()->get_num_remap_operator() == 1 &&
-                 remap_weights->get_remap_strategy()->get_remap_operator(0)->get_num_dimensions() == 2,
+                 (remap_weights->get_remap_strategy() == NULL || remap_weights->get_remap_strategy()->get_num_remap_operator() == 1 &&
+                 remap_weights->get_remap_strategy()->get_remap_operator(0)->get_num_dimensions() == 2),
                  "for SCRIP format of remap weights, we only support horizontal 2D remap of only one remap algorithm\n");
     if (execution_phase_number == 1) {
         remap_operator = remap_weights->get_unique_remap_operator_of_weights();
         EXECUTION_REPORT(REPORT_ERROR, -1, remap_operator != NULL,
                      "for SCRIP format of remap weights, we only support horizontal 2D remap of only one 2D remap algorithm\n");
-        remap_operator_grid_src = new Remap_operator_grid(remap_weights->get_data_grid_src(), remap_operator, true, false);
-        remap_operator_grid_dst = new Remap_operator_grid(remap_weights->get_data_grid_dst(), remap_operator, true, false);
+        remap_operator_grid_src = new Remap_operator_grid(remap_weights->get_data_grid_src(), remap_operator, false, false);
+        remap_operator_grid_dst = new Remap_operator_grid(remap_weights->get_data_grid_dst(), remap_operator, false, false);
         remap_operator_grid_src->update_operator_grid_data();
         remap_operator_grid_dst->update_operator_grid_data();
         EXECUTION_REPORT(REPORT_ERROR, -1, remap_operator->get_num_remap_weights_groups() == 1,
@@ -707,7 +710,8 @@ void IO_netcdf::write_remap_weights(Remap_weight_of_strategy_class *remap_weight
         weight_sparse_matrix = remap_operator->get_remap_weights_group(0);
         area_or_volumn_a = remap_weights->get_data_grid_src()->get_area_or_volumn();
         area_or_volumn_b = remap_weights->get_data_grid_dst()->get_area_or_volumn();
-        EXECUTION_REPORT(REPORT_ERROR, -1, area_or_volumn_a != NULL && area_or_volumn_b != NULL, "remap software error2 in write_remap_weights of netcdf file\n");
+		if (remap_weights->get_remap_strategy() != NULL) 
+	        EXECUTION_REPORT(REPORT_ERROR, -1, area_or_volumn_a != NULL && area_or_volumn_b != NULL, "remap software error2 in write_remap_weights of netcdf file\n");
         rcode = nc_open(file_name, NC_WRITE, &ncfile_id);
         rcode = nc_redef(ncfile_id);
         report_nc_error();
@@ -723,10 +727,14 @@ void IO_netcdf::write_remap_weights(Remap_weight_of_strategy_class *remap_weight
         report_nc_error();
         rcode = nc_def_var(ncfile_id, "S", NC_DOUBLE, 1, &dim_ncid_n_s, &S_id);
         report_nc_error();
-        rcode = nc_def_var(ncfile_id, "area_a", NC_DOUBLE, 1, &dim_ncid_n_a, &area_a_id);
-        report_nc_error();            
-        rcode = nc_def_var(ncfile_id, "area_b", NC_DOUBLE, 1, &dim_ncid_n_b, &area_b_id);
-        report_nc_error();
+		if (area_or_volumn_a != NULL) {
+        	rcode = nc_def_var(ncfile_id, "area_a", NC_DOUBLE, 1, &dim_ncid_n_a, &area_a_id);
+	        report_nc_error();            
+		}
+		if (area_or_volumn_b != NULL) {
+        	rcode = nc_def_var(ncfile_id, "area_b", NC_DOUBLE, 1, &dim_ncid_n_b, &area_b_id);
+	        report_nc_error();
+		}
         rcode = nc_def_var(ncfile_id, "yc_a", NC_DOUBLE, 1, &dim_ncid_n_a, &yc_a_id);
         report_nc_error();
         rcode = nc_def_var(ncfile_id, "xc_a", NC_DOUBLE, 1, &dim_ncid_n_a, &xc_a_id);
@@ -735,22 +743,27 @@ void IO_netcdf::write_remap_weights(Remap_weight_of_strategy_class *remap_weight
         report_nc_error();
         rcode = nc_def_var(ncfile_id, "xc_b", NC_DOUBLE, 1, &dim_ncid_n_b, &xc_b_id);
         report_nc_error();
-        rcode = nc_def_dim(ncfile_id, "nv_a", remap_operator_grid_src->get_num_vertexes(), &dim_ncid_nv_a);
-           report_nc_error();            
-        dim_ncids[0] = dim_ncid_n_a;
-        dim_ncids[1] = dim_ncid_nv_a;
-        rcode = nc_def_var(ncfile_id, "yv_a", NC_DOUBLE, 2, dim_ncids, &yv_a_id);
-        report_nc_error();
-        rcode = nc_def_var(ncfile_id, "xv_a", NC_DOUBLE, 2, dim_ncids, &xv_a_id);
-        report_nc_error();
-        rcode = nc_def_dim(ncfile_id, "nv_b", remap_operator_grid_dst->get_num_vertexes(), &dim_ncid_nv_b);
-           report_nc_error();
-        dim_ncids[0] = dim_ncid_n_b;
-        dim_ncids[1] = dim_ncid_nv_b;
-        rcode = nc_def_var(ncfile_id, "yv_b", NC_DOUBLE, 2, dim_ncids, &yv_b_id);
-        report_nc_error();
-        rcode = nc_def_var(ncfile_id, "xv_b", NC_DOUBLE, 2, dim_ncids, &xv_b_id);
-        report_nc_error();
+
+		if (remap_grid_src->are_all_vertex_fields_specified_by_user()) {
+	        rcode = nc_def_dim(ncfile_id, "nv_a", remap_operator_grid_src->get_num_vertexes(), &dim_ncid_nv_a);
+	        report_nc_error();            
+	        dim_ncids[0] = dim_ncid_n_a;
+	        dim_ncids[1] = dim_ncid_nv_a;
+	        rcode = nc_def_var(ncfile_id, "yv_a", NC_DOUBLE, 2, dim_ncids, &yv_a_id);
+	        report_nc_error();
+	        rcode = nc_def_var(ncfile_id, "xv_a", NC_DOUBLE, 2, dim_ncids, &xv_a_id);
+	        report_nc_error();
+		}
+		if (remap_grid_dst->are_all_vertex_fields_specified_by_user()) {
+	        rcode = nc_def_dim(ncfile_id, "nv_b", remap_operator_grid_dst->get_num_vertexes(), &dim_ncid_nv_b);
+	        report_nc_error();
+	        dim_ncids[0] = dim_ncid_n_b;
+	        dim_ncids[1] = dim_ncid_nv_b;
+	        rcode = nc_def_var(ncfile_id, "yv_b", NC_DOUBLE, 2, dim_ncids, &yv_b_id);
+	        report_nc_error();
+	        rcode = nc_def_var(ncfile_id, "xv_b", NC_DOUBLE, 2, dim_ncids, &xv_b_id);
+	        report_nc_error();
+		}
         rcode = nc_def_var(ncfile_id, "mask_a", NC_INT, 1, &dim_ncid_n_a, &mask_a_id);
         report_nc_error();
         rcode = nc_def_var(ncfile_id, "mask_b", NC_INT, 1, &dim_ncid_n_b, &mask_b_id);
@@ -769,10 +782,14 @@ void IO_netcdf::write_remap_weights(Remap_weight_of_strategy_class *remap_weight
         report_nc_error();
         rcode = nc_put_var_double(ncfile_id, S_id, weight_sparse_matrix->get_weight_values());
         report_nc_error();
-        rcode = nc_put_var_double(ncfile_id, area_a_id, area_or_volumn_a);
-        report_nc_error();
-        rcode = nc_put_var_double(ncfile_id, area_b_id, area_or_volumn_b);
-        report_nc_error();
+		if (area_or_volumn_a != NULL) {
+        	rcode = nc_put_var_double(ncfile_id, area_a_id, area_or_volumn_a);
+	        report_nc_error();
+		}
+		if (area_or_volumn_b != NULL) {
+        	rcode = nc_put_var_double(ncfile_id, area_b_id, area_or_volumn_b);
+	        report_nc_error();
+		}
         
         EXECUTION_REPORT(REPORT_ERROR, -1, remap_operator_grid_src->get_center_coord_values()[0] != NULL &&
                          remap_operator_grid_src->get_center_coord_values()[1] != NULL, 
@@ -797,14 +814,18 @@ void IO_netcdf::write_remap_weights(Remap_weight_of_strategy_class *remap_weight
         report_nc_error();
         rcode = nc_put_var_double(ncfile_id, xc_b_id, remap_operator_grid_dst->get_center_coord_values()[0]);
         report_nc_error();
-        rcode = nc_put_var_double(ncfile_id, yv_a_id, remap_operator_grid_src->get_vertex_coord_values()[1]);
-        report_nc_error();
-        rcode = nc_put_var_double(ncfile_id, xv_a_id, remap_operator_grid_src->get_vertex_coord_values()[0]);
-        report_nc_error();
-        rcode = nc_put_var_double(ncfile_id, yv_b_id, remap_operator_grid_dst->get_vertex_coord_values()[1]);
-        report_nc_error();
-        rcode = nc_put_var_double(ncfile_id, xv_b_id, remap_operator_grid_dst->get_vertex_coord_values()[0]);
-        report_nc_error();
+		if (remap_grid_src->are_all_vertex_fields_specified_by_user()) {
+	        rcode = nc_put_var_double(ncfile_id, yv_a_id, remap_operator_grid_src->get_vertex_coord_values()[1]);
+	        report_nc_error();
+	        rcode = nc_put_var_double(ncfile_id, xv_a_id, remap_operator_grid_src->get_vertex_coord_values()[0]);
+	        report_nc_error();
+		}
+		if (remap_grid_dst->are_all_vertex_fields_specified_by_user()) {
+	        rcode = nc_put_var_double(ncfile_id, yv_b_id, remap_operator_grid_dst->get_vertex_coord_values()[1]);
+    	    report_nc_error();
+        	rcode = nc_put_var_double(ncfile_id, xv_b_id, remap_operator_grid_dst->get_vertex_coord_values()[0]);
+	        report_nc_error();
+    	}
         temp_int_values = new int [remap_operator->get_src_grid()->get_grid_size()];
         for (j = 0; j < remap_operator->get_src_grid()->get_grid_size(); j ++)
             if (remap_operator_grid_src->get_mask_values()[j])
@@ -1030,9 +1051,11 @@ void IO_netcdf::read_file_field(const char *field_name, void **data_array_ptr, i
             return;
         MPI_Bcast(field_size, 1, MPI_INT, 0, comm);
         MPI_Bcast(data_type, NAME_STR_SIZE, MPI_CHAR, 0, comm);
-        if (data_array == NULL)
-            data_array = new char [(*field_size)*get_data_type_size(data_type)];
-        MPI_Bcast(data_array, (*field_size)*get_data_type_size(data_type), MPI_CHAR, 0, comm);
+		if (field_size > 0) {
+	        if (data_array == NULL)
+	            data_array = new char [(*field_size)*get_data_type_size(data_type)];
+	        MPI_Bcast(data_array, (*field_size)*get_data_type_size(data_type), MPI_CHAR, 0, comm);
+		}
     }
 
     *data_array_ptr = data_array;

@@ -72,6 +72,11 @@ Routing_info::Routing_info(const int src_comp_id, const int dst_comp_id, const c
     current_proc_id_src_comp = src_comp_node->get_current_proc_local_id();
     current_proc_id_dst_comp = dst_comp_node->get_current_proc_local_id();
 
+    if (current_proc_id_src_comp != 0)
+        EXECUTION_REPORT_LOG(REPORT_LOG, src_comp_id, true, "Start to generate router from (%s %s) to (%s %s)", src_comp_full_name, src_decomp_name, index_dst_comp_full_name, dst_decomp_name);
+    if (current_proc_id_dst_comp != 0)
+        EXECUTION_REPORT_LOG(REPORT_LOG, dst_comp_id, true, "Start to generate router from (%s %s) to (%s %s)", src_comp_full_name, src_decomp_name, index_dst_comp_full_name, dst_decomp_name);
+
     if (words_are_the_same(src_decomp_name, "NULL")) {
         EXECUTION_REPORT(REPORT_ERROR,-1, words_are_the_same(dst_decomp_name, "NULL"), "for router of scalar variables, the local and remote decompositions must be \"NULL\"\n");
         num_dimensions = 0;
@@ -219,7 +224,7 @@ Routing_info_with_one_process *Routing_info::compute_routing_info_between_decomp
         return routing_info;
     
     /* Determine the reference cell index table according to the table size */
-    if (num_local_cells_remote < num_local_cells_local || (num_local_cells_remote == num_local_cells_local && is_src)) {
+    if (is_src) {
         reference_cell_indx = local_cells_global_indexes_remote;
         num_reference_cells = num_local_cells_remote;  
     }
@@ -248,10 +253,18 @@ Routing_info_with_one_process *Routing_info::compute_routing_info_between_decomp
     last_local_logical_indx = -100;
     for (j = 0; j < num_reference_cells; j ++) 
         if (reference_cell_indx[j] != CCPL_NULL_INT && logical_indx_lookup_table_local[reference_cell_indx[j]] != -1 && logical_indx_lookup_table_remote[reference_cell_indx[j]] != -1) {
-            if (last_local_logical_indx + 1 != logical_indx_lookup_table_local[reference_cell_indx[j]]) 
-                routing_info->num_local_indx_segments ++;
-            last_local_logical_indx = logical_indx_lookup_table_local[reference_cell_indx[j]];
-            routing_info->num_elements_transferred ++;
+			if (reference_cell_indx == local_cells_global_indexes_local) {
+	            if (last_local_logical_indx + 1 != j) 
+	                routing_info->num_local_indx_segments ++;
+	            last_local_logical_indx = j;
+	            routing_info->num_elements_transferred ++;				
+			}
+			else {
+	            if (last_local_logical_indx + 1 != logical_indx_lookup_table_local[reference_cell_indx[j]]) 
+	                routing_info->num_local_indx_segments ++;
+	            last_local_logical_indx = logical_indx_lookup_table_local[reference_cell_indx[j]];
+	            routing_info->num_elements_transferred ++;
+			}
         }
 
     /* Compute the info of segments when there are common cells */
@@ -262,13 +275,24 @@ Routing_info_with_one_process *Routing_info::compute_routing_info_between_decomp
         routing_info->num_local_indx_segments = 0;
         for (j = 0; j < num_reference_cells; j ++) 
             if (reference_cell_indx[j] != CCPL_NULL_INT && logical_indx_lookup_table_local[reference_cell_indx[j]] != -1 && logical_indx_lookup_table_remote[reference_cell_indx[j]] != -1) {
-                if (last_local_logical_indx + 1 != logical_indx_lookup_table_local[reference_cell_indx[j]]) {
-                    routing_info->local_indx_segment_starts[routing_info->num_local_indx_segments] = logical_indx_lookup_table_local[reference_cell_indx[j]];
-                    routing_info->local_indx_segment_lengths[routing_info->num_local_indx_segments] = 1;
-                    routing_info->num_local_indx_segments ++;
-                }
-                else routing_info->local_indx_segment_lengths[routing_info->num_local_indx_segments - 1] ++;
-                last_local_logical_indx = logical_indx_lookup_table_local[reference_cell_indx[j]];
+				if (reference_cell_indx == local_cells_global_indexes_local) {
+	                if (last_local_logical_indx + 1 != j) {
+	                    routing_info->local_indx_segment_starts[routing_info->num_local_indx_segments] = j;
+	                    routing_info->local_indx_segment_lengths[routing_info->num_local_indx_segments] = 1;
+	                    routing_info->num_local_indx_segments ++;
+	                }
+	                else routing_info->local_indx_segment_lengths[routing_info->num_local_indx_segments - 1] ++;
+	                last_local_logical_indx = j;
+				}
+				else {
+	                if (last_local_logical_indx + 1 != logical_indx_lookup_table_local[reference_cell_indx[j]]) {
+	                    routing_info->local_indx_segment_starts[routing_info->num_local_indx_segments] = logical_indx_lookup_table_local[reference_cell_indx[j]];
+	                    routing_info->local_indx_segment_lengths[routing_info->num_local_indx_segments] = 1;
+	                    routing_info->num_local_indx_segments ++;
+	                }
+	                else routing_info->local_indx_segment_lengths[routing_info->num_local_indx_segments - 1] ++;
+	                last_local_logical_indx = logical_indx_lookup_table_local[reference_cell_indx[j]];
+				}
             }
     }
 

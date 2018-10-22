@@ -133,6 +133,7 @@ class Comp_comm_group_mgt_mgr
         char executable_name[NAME_STR_SIZE];
         char root_working_dir[NAME_STR_SIZE];
         char internal_H2D_grids_dir[NAME_STR_SIZE];
+		char internal_remapping_weights_dir[NAME_STR_SIZE];
         char components_processes_dir[NAME_STR_SIZE];
         char components_exports_dir[NAME_STR_SIZE];
         char active_coupling_connections_dir[NAME_STR_SIZE];
@@ -169,6 +170,7 @@ class Comp_comm_group_mgt_mgr
         int get_num_total_global_procs() { return num_total_global_procs; }
         const char *get_root_working_dir() { return root_working_dir; }
         const char *get_internal_H2D_grids_dir() { return internal_H2D_grids_dir; }
+		const char *get_internal_remapping_weights_dir() { return internal_remapping_weights_dir; }
         const char *get_components_processes_dir() { return components_processes_dir; }
         const char *get_components_exports_dir() { return components_exports_dir; }
         const char *get_active_coupling_connections_dir() { return active_coupling_connections_dir; }

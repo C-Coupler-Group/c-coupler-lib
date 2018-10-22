@@ -42,7 +42,7 @@ double calculate_distance_of_two_points_2D(double point1_coord1_value,
         if (temp_value > 1)
             temp_value = 1;
         if (temp_value < -1)
-            temp_value = 1;
+            temp_value = -1.0;
         distance = acos(temp_value);
     }
     else {

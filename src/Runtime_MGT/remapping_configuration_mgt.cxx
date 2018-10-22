@@ -115,30 +115,30 @@ bool H2D_remapping_wgt_file_info::match_H2D_remapping_wgt(Original_grid_info *sr
         clean();
         return false;
     }
-    read_weight_grid_data(dst_original_grid->get_comp_id(), "xc_a", DATA_TYPE_DOUBLE, (void**)(&src_center_lon), src_grid_size);
+    read_weight_grid_data(dst_original_grid->get_comp_id(), "xc_a", DATA_TYPE_DOUBLE, (void**)(&src_center_lon), src_grid_size, true);
     if (!are_two_coord_arrays_same(src_original_grid->get_center_lon_values(), this->src_center_lon, src_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->src_grid_size)) {
         clean();
         return false;
     }
-    read_weight_grid_data(dst_original_grid->get_comp_id(), "xc_b", DATA_TYPE_DOUBLE, (void**)(&dst_center_lon), dst_grid_size);
+    read_weight_grid_data(dst_original_grid->get_comp_id(), "xc_b", DATA_TYPE_DOUBLE, (void**)(&dst_center_lon), dst_grid_size, true);
     if (!are_two_coord_arrays_same(dst_original_grid->get_center_lon_values(), this->dst_center_lon, dst_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->dst_grid_size)) {
         clean();
         return false;
     }
-    read_weight_grid_data(dst_original_grid->get_comp_id(), "yc_a", DATA_TYPE_DOUBLE, (void**)(&src_center_lat), src_grid_size);
+    read_weight_grid_data(dst_original_grid->get_comp_id(), "yc_a", DATA_TYPE_DOUBLE, (void**)(&src_center_lat), src_grid_size, true);
     if (!are_two_coord_arrays_same(src_original_grid->get_center_lat_values(), this->src_center_lat, src_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->src_grid_size)) {
         clean();
         return false;
     }
-    read_weight_grid_data(dst_original_grid->get_comp_id(), "yc_b", DATA_TYPE_DOUBLE, (void**)(&dst_center_lat), dst_grid_size);
+    read_weight_grid_data(dst_original_grid->get_comp_id(), "yc_b", DATA_TYPE_DOUBLE, (void**)(&dst_center_lat), dst_grid_size, true);
     if (!are_two_coord_arrays_same(dst_original_grid->get_center_lat_values(), this->dst_center_lat, dst_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->dst_grid_size)) {
         clean();
         return false;
     }
     clean();
 
-    read_weight_grid_data(dst_original_grid->get_comp_id(), "area_a", DATA_TYPE_DOUBLE, (void**)(&src_area), src_grid_size);
-    read_weight_grid_data(dst_original_grid->get_comp_id(), "area_b", DATA_TYPE_DOUBLE, (void**)(&dst_area), dst_grid_size);
+    read_weight_grid_data(dst_original_grid->get_comp_id(), "area_a", DATA_TYPE_DOUBLE, (void**)(&src_area), src_grid_size, false);
+    read_weight_grid_data(dst_original_grid->get_comp_id(), "area_b", DATA_TYPE_DOUBLE, (void**)(&dst_area), dst_grid_size, false);
     read_remapping_weights(dst_original_grid->get_comp_id());
 
     matched_grid_pair.push_back(std::make_pair(src_original_grid, dst_original_grid));
@@ -195,7 +195,7 @@ void H2D_remapping_wgt_file_info::read_grid_size(int comp_id, const char *label,
 }
             
 
-void H2D_remapping_wgt_file_info::read_weight_grid_data(int comp_id, const char *label, const char *required_data_type, void **buffer_ptr, int buffer_size)
+void H2D_remapping_wgt_file_info::read_weight_grid_data(int comp_id, const char *label, const char *required_data_type, void **buffer_ptr, int buffer_size, bool necessary)
 {
     int field_size, i, local_proc_id_in_file_read_comm, num_procs_in_file_read_comm;
     char data_type[NAME_STR_SIZE];
@@ -214,7 +214,8 @@ void H2D_remapping_wgt_file_info::read_weight_grid_data(int comp_id, const char 
 
     IO_netcdf *netcdf_file_object = new IO_netcdf("remapping weights file for H2D interpolation", wgt_file_name, "r", false);
     netcdf_file_object->read_file_field(label, buffer_ptr, &field_size, data_type, file_read_comm, local_proc_id_in_file_read_comm == 0);
-    EXECUTION_REPORT(REPORT_ERROR, comp_comm_group_mgt_mgr->get_global_node_root()->get_comp_id(), field_size == buffer_size && words_are_the_same(data_type, required_data_type), "Error happens when reading the remapping weights file \"%s\": fail to read the variable \"%s\" because of wrong array size or wrong data type (should be %s). Please verify.", wgt_file_name, label, required_data_type);
+	if (necessary)
+	    EXECUTION_REPORT(REPORT_ERROR, comp_comm_group_mgt_mgr->get_global_node_root()->get_comp_id(), field_size == buffer_size && words_are_the_same(data_type, required_data_type), "Error happens when reading the remapping weights file \"%s\": fail to read the variable \"%s\" because of wrong array size or wrong data type (should be %s). Please verify.", wgt_file_name, label, required_data_type);
     delete netcdf_file_object;
 
     MPI_Comm_free(&file_read_comm);
@@ -379,8 +380,11 @@ void H2D_remapping_wgt_file_mgt::append_remapping_weights(H2D_remapping_wgt_file
 }
 
 
-H2D_remapping_wgt_file_info *H2D_remapping_wgt_file_mgt::search_H2D_remapping_weight(Original_grid_info *src_original_grid, Original_grid_info *dst_original_grid)
+H2D_remapping_wgt_file_info *H2D_remapping_wgt_file_mgt::search_H2D_remapping_weight(Original_grid_info *src_original_grid, Original_grid_info *dst_original_grid, const char *algorithm_name, int comp_id)
 {
+	char full_default_wgt_file_name[NAME_STR_SIZE*2];
+
+	
     if (src_original_grid->get_original_CoR_grid() != src_original_grid->get_H2D_sub_CoR_grid() && 
         (src_original_grid->get_original_CoR_grid()->get_grid_mask_field() != NULL || dst_original_grid->get_original_CoR_grid()->get_grid_mask_field() != NULL))
         return NULL;
@@ -388,8 +392,36 @@ H2D_remapping_wgt_file_info *H2D_remapping_wgt_file_mgt::search_H2D_remapping_we
     for (int i = 0; i < H2D_remapping_wgt_files.size(); i ++)
         if (H2D_remapping_wgt_files[i]->match_H2D_remapping_wgt(src_original_grid, dst_original_grid))
             return H2D_remapping_wgt_files[i];
+
+	if (src_original_grid->get_H2D_sub_CoR_grid() != NULL && algorithm_name != NULL) {	
+		sprintf(full_default_wgt_file_name, "%s/DEFAULT_WGT_of___%s___FROM___%s___TO___%s___AT___%s.nc", comp_comm_group_mgt_mgr->get_internal_remapping_weights_dir(), algorithm_name, src_original_grid->get_H2D_sub_CoR_grid()->get_grid_name(), dst_original_grid->get_H2D_sub_CoR_grid()->get_grid_name(), comp_comm_group_mgt_mgr->search_global_node(comp_id)->get_full_name());
+		EXECUTION_REPORT_LOG(REPORT_LOG, comp_id, true, "Default remapping weight file \"%s\" will be checked if avaiable", full_default_wgt_file_name);
+		H2D_remapping_wgt_file_info *existing_wgt_file = all_H2D_remapping_wgt_files_info->search_wgt_file_info(full_default_wgt_file_name);
+		if (existing_wgt_file != NULL)
+			return existing_wgt_file;
+		if (does_file_exist(full_default_wgt_file_name)) {
+			EXECUTION_REPORT_LOG(REPORT_LOG, comp_id, true, "Default remapping weight file \"%s\" exists", full_default_wgt_file_name);
+			H2D_remapping_wgt_file_info *new_wgt_file = new H2D_remapping_wgt_file_info(full_default_wgt_file_name);
+			if (new_wgt_file->match_H2D_remapping_wgt(src_original_grid, dst_original_grid)) {
+				EXECUTION_REPORT_LOG(REPORT_LOG, comp_id, true, "Default remapping weight file \"%s\" will be used", full_default_wgt_file_name);
+				all_H2D_remapping_wgt_files_info->add_wgt_file_info(new_wgt_file);
+				return new_wgt_file;
+			}
+			else delete new_wgt_file;
+		}
+	}
         
     return NULL;    
+}
+
+
+H2D_remapping_wgt_file_info *H2D_remapping_wgt_file_mgt::search_H2D_remapping_weight(const char *file_name)
+{
+	for (int i = 0; i < H2D_remapping_wgt_files.size(); i ++)
+		if (words_are_the_same(H2D_remapping_wgt_files[i]->get_wgt_file_name(), file_name))
+			return H2D_remapping_wgt_files[i];
+		
+	return NULL;
 }
 
 
@@ -426,7 +458,7 @@ H2D_remapping_wgt_file_mgt *H2D_remapping_wgt_file_mgt::clone()
 
 void H2D_remapping_wgt_file_mgt::shrink(Original_grid_info *src_grid, Original_grid_info *dst_grid)
 {
-    H2D_remapping_wgt_file_info *remapping_file = search_H2D_remapping_weight(src_grid, dst_grid);
+    H2D_remapping_wgt_file_info *remapping_file = search_H2D_remapping_weight(src_grid, dst_grid, NULL, -1);
     H2D_remapping_wgt_files.clear();
     if (remapping_file != NULL)
         H2D_remapping_wgt_files.push_back(remapping_file);
@@ -923,12 +955,14 @@ bool Remapping_setting::is_the_same_as_another(Remapping_setting *another)
 }
 
 
-H2D_remapping_wgt_file_info *Remapping_setting::search_H2D_remapping_weight(Original_grid_info *src_original_grid, Original_grid_info *dst_original_grid)
+H2D_remapping_wgt_file_info *Remapping_setting::search_H2D_remapping_weight(Original_grid_info *src_original_grid, Original_grid_info *dst_original_grid, int remapping_host_comp_id)
 {
     if (H2D_remapping_wgt_file_mgr == NULL)
         return NULL;
-    
-    return H2D_remapping_wgt_file_mgr->search_H2D_remapping_weight(src_original_grid, dst_original_grid);
+
+	if (H2D_remapping_algorithm != NULL)
+	    return H2D_remapping_wgt_file_mgr->search_H2D_remapping_weight(src_original_grid, dst_original_grid, H2D_remapping_algorithm->get_algorithm_name(), remapping_host_comp_id);
+	else return H2D_remapping_wgt_file_mgr->search_H2D_remapping_weight(src_original_grid, dst_original_grid, NULL, -1);
 }
 
 

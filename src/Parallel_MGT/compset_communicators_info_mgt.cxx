@@ -698,6 +698,8 @@ Comp_comm_group_mgt_mgr::Comp_comm_group_mgt_mgr(const char *executable_name)
     create_directory(temp_string, MPI_COMM_WORLD, current_proc_global_id == 0, false);
     sprintf(internal_H2D_grids_dir, "%s/CCPL_dir/run/data/all/internal_H2D_grids", root_working_dir);
     create_directory(internal_H2D_grids_dir, MPI_COMM_WORLD, current_proc_global_id == 0, true);
+    sprintf(internal_remapping_weights_dir, "%s/CCPL_dir/run/data/all/internal_remapping_weights", root_working_dir);
+    create_directory(internal_remapping_weights_dir, MPI_COMM_WORLD, current_proc_global_id == 0, false);
     sprintf(components_processes_dir, "%s/CCPL_dir/run/data/all/components_processes", root_working_dir);
     create_directory(components_processes_dir, MPI_COMM_WORLD, current_proc_global_id == 0, true);
     sprintf(components_exports_dir, "%s/CCPL_dir/run/data/all/components_exports", root_working_dir);

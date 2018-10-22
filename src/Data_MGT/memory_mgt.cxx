@@ -129,17 +129,19 @@ Field_mem_info::~Field_mem_info()
 
 void Field_mem_info::reset_mem_buf(void * buf, bool is_external_field, int usage_tag)
 {
-    EXECUTION_REPORT(REPORT_ERROR, host_comp_id, buf != NULL, "The data buffer corresponding to the field instance of \"%s\" is not allocated. Please verify the model code corresponding to the annotation \"%s\"", field_name, annotation_mgr->get_annotation(field_instance_id, "allocate field instance"));
+	if (get_size_of_field() > 0)
+	    EXECUTION_REPORT(REPORT_ERROR, host_comp_id, buf != NULL, "The data buffer corresponding to the field instance of \"%s\" is not allocated. Please verify the model code corresponding to the annotation \"%s\"", field_name, annotation_mgr->get_annotation(field_instance_id, "allocate field instance"));
     EXECUTION_REPORT(REPORT_ERROR, -1, !is_registered_model_buf, "Software error to release a registered buffer");
 
     if (grided_field_data->get_grid_data_field()->data_buf != NULL)
         delete [] grided_field_data->get_grid_data_field()->data_buf;
 
     grided_field_data->get_grid_data_field()->data_buf = buf;
-    is_registered_model_buf = true;
 
-    if (is_external_field)
+    if (is_external_field) {
         this->usage_tag = usage_tag;
+		is_registered_model_buf = true;
+    }
 }
 
 
@@ -497,7 +499,7 @@ int Memory_mgt::register_external_field_instance(const char *field_name, void *d
 
     existing_field_instance_instance = search_field_instance(field_name, decomp_id, comp_or_grid_id, buf_mark);
     if (existing_field_instance_instance != NULL)
-        EXECUTION_REPORT(REPORT_ERROR, comp_id, false, "Error happens when calling the API \"CCPL_register_field_instance\" to register a field instance of \"%s\": cannot register an instance of the field of \"%s\" again (the corresponding annotation is \"%s\") because this field instance has been registered before (the corresponding annotation is \"%s\")", 
+        EXECUTION_REPORT(REPORT_ERROR, comp_id, false, "Error happens when calling the API \"CCPL_register_field_instance\" to register a field instance: cannot register an instance of the field of \"%s\" again (the corresponding annotation is \"%s\") because this field instance has been registered before (the corresponding annotation is \"%s\")", 
                          field_name, annotation, annotation_mgr->get_annotation(existing_field_instance_instance->get_field_instance_id(), "allocate field instance"));
 
     new_field_instance = new Field_mem_info(field_name, decomp_id, comp_or_grid_id, buf_mark, unit, data_type, annotation, (buf_mark!=BUF_MARK_IO_FIELD_REG) && (usage_tag&REG_FIELD_TAG_CPL) == REG_FIELD_TAG_CPL);

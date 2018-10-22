@@ -181,14 +181,14 @@ class Coupling_generator
         
         void generate_interface_fields_source_dst(const char*, int);
         void generate_components_connections();        
-        void generate_coupling_procedures_common(int, MPI_Comm, bool, const char*);
+        void generate_coupling_procedures_common(int, MPI_Comm, bool, bool, const char*);
         void sort_comp_full_names(std::vector<const char*> &, std::vector<int>*);
 
     public:
         Coupling_generator() { latest_connection_id = 1; import_field_index_lookup_table = NULL; export_field_index_lookup_table = NULL; }
         ~Coupling_generator();
         void clear();
-        void generate_coupling_procedures_internal(int, bool, const char*);
+        void generate_coupling_procedures_internal(int, bool, bool, const char*);
         void generate_IO_procedures();
         int apply_connection_id() {  return (++latest_connection_id); }
         int get_latest_connection_id() { return latest_connection_id; }

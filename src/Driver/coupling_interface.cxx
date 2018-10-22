@@ -650,7 +650,7 @@ extern "C" void ccpl_family_coupling_generation_
     check_for_component_registered(*comp_id, API_ID_COUPLING_GEN_FAMILY, annotation, false);
     EXECUTION_REPORT_LOG(REPORT_LOG, *comp_id, true, "start to generate coupling procedures for the component model \"%s\" and its descendants", comp_comm_group_mgt_mgr->get_global_node_of_local_comp(*comp_id,true,"")->get_full_name());
     synchronize_comp_processes_for_API(*comp_id, API_ID_COUPLING_GEN_FAMILY, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(*comp_id, "C-Coupler code in ccpl_family_coupling_generation_"), "first synchorization for coupling generation of a component", annotation);    
-    coupling_generator->generate_coupling_procedures_internal(*comp_id, true, annotation);
+    coupling_generator->generate_coupling_procedures_internal(*comp_id, true, false, annotation);
     EXECUTION_REPORT_LOG(REPORT_LOG, *comp_id, true, "Finish generating coupling procedures for the component model \"%s\" and its descendants", comp_comm_group_mgt_mgr->get_global_node_of_local_comp(*comp_id,true,"")->get_full_name());
 }
 
@@ -665,7 +665,7 @@ extern "C" void ccpl_individual_coupling_generation_
     check_for_component_registered(*comp_id, API_ID_COUPLING_GEN_INDIVIDUAL, annotation, false);
     EXECUTION_REPORT_LOG(REPORT_LOG, *comp_id, true, "start to generate coupling procedures for the component model \"%s\"", comp_comm_group_mgt_mgr->get_global_node_of_local_comp(*comp_id,true,"")->get_full_name());
     synchronize_comp_processes_for_API(*comp_id, API_ID_COUPLING_GEN_INDIVIDUAL, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(*comp_id, "C-Coupler code in ccpl_individual_coupling_generation_"), "first synchorization for coupling generation of a component", annotation);    
-    coupling_generator->generate_coupling_procedures_internal(*comp_id, false, annotation);
+    coupling_generator->generate_coupling_procedures_internal(*comp_id, false, true, annotation);
     EXECUTION_REPORT_LOG(REPORT_LOG, *comp_id, true, "Finish generating coupling procedures for the component model \"%s\" and its descendants", comp_comm_group_mgt_mgr->get_global_node_of_local_comp(*comp_id,true,"")->get_full_name());
 }
 
@@ -1516,6 +1516,22 @@ extern "C" void set_import_interface_fields_necessity_
 
 
 #ifdef LINK_WITHOUT_UNDERLINE
+extern "C" void get_ccpl_import_fields_sender_time
+#else
+extern "C" void get_ccpl_import_fields_sender_time_
+#endif
+(int *import_interface_id, int *size_sender_date, int *size_sender_elapsed_days, int *size_sender_second, int *sender_date, int *sender_elapsed_days, int *sender_second, const char *annotation)
+{
+	EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "Start to get the sender time of import fields");
+	check_for_ccpl_managers_allocated(API_ID_INTERFACE_GET_SENDER_TIME, annotation);
+    Inout_interface *import_interface = inout_interface_mgr->get_interface(*import_interface_id);
+    EXECUTION_REPORT(REPORT_ERROR, -1, import_interface != NULL, "ERROR happens when calling the API \"CCPL_get_import_fields_sender_time\": the parameter \"interface_id\" is not a legal ID of a coupling interface. Please verify the model code with the annotation \"%s\".", annotation);
+	import_interface->get_sender_time(*size_sender_date, *size_sender_elapsed_days, *size_sender_second, sender_date, sender_elapsed_days, sender_second, annotation);
+	EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "Finish getting the sender time of import fields");
+}
+
+
+#ifdef LINK_WITHOUT_UNDERLINE
 extern "C" void execute_inout_interface_with_id
 #else
 extern "C" void execute_inout_interface_with_id_
@@ -1555,9 +1571,9 @@ extern "C" void get_local_comp_full_name_
 #endif
 (int *comp_id, char *comp_full_name, int *comp_full_name_size, const char *annotation)
 {
-    check_for_component_registered(*comp_id, API_ID_INTERFACE_GET_LOCAL_COMP_FULL_NAME, annotation, false);
+    check_for_component_registered(*comp_id, API_ID_COMP_MGT_GET_LOCAL_COMP_FULL_NAME, annotation, false);
     const char *full_name = comp_comm_group_mgt_mgr->get_global_node_of_local_comp(*comp_id, true, "in get_local_comp_full_name_")->get_full_name();
-    copy_out_string_to_Fortran_API(*comp_id, *comp_full_name_size, comp_full_name, full_name, API_ID_INTERFACE_GET_LOCAL_COMP_FULL_NAME, "comp_full_name", annotation);
+    copy_out_string_to_Fortran_API(*comp_id, *comp_full_name_size, comp_full_name, full_name, API_ID_COMP_MGT_GET_LOCAL_COMP_FULL_NAME, "comp_full_name", annotation);
 }
 
 

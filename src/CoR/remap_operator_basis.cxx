@@ -8,6 +8,7 @@
 
 
 #include "cor_global_data.h"
+#include "global_data.h"
 #include "remap_operator_basis.h"
 #include "quick_sort.h"
 #include <string.h>
@@ -229,4 +230,23 @@ void Remap_operator_basis::update_unique_weight_sparse_matrix(Remap_weight_spars
     remap_weights_groups.push_back(new_sparse_matrix);
 }
 
+
+Remap_operator_basis *Remap_operator_basis::gather(int comp_id)
+{
+	Comp_comm_group_mgt_node *comp_node = comp_comm_group_mgt_mgr->search_global_node(comp_id);
+	Remap_operator_basis *overall_remap_operator = NULL;
+
+	
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, remap_weights_groups.size() == 1, "software error in Remap_operator_basis::gather");
+	if (comp_node->get_current_proc_local_id() == 0)
+		overall_remap_operator = duplicate_remap_operator(false);
+
+	for (int i = 0; i < remap_weights_groups.size(); i ++) {
+		Remap_weight_sparse_matrix *overall_remap_weight_sparse_matrix = remap_weights_groups[i]->gather(comp_id);
+		if (comp_node->get_current_proc_local_id() == 0)
+			overall_remap_operator->remap_weights_groups.push_back(overall_remap_weight_sparse_matrix);
+	}
+	
+	return overall_remap_operator;
+}
 

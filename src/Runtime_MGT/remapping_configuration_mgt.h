@@ -60,7 +60,7 @@ class H2D_remapping_wgt_file_info
         double *get_wgts_values () { return wgts_values; }        
         void get_checksum_mask(int, const char *, int, long &);
         void read_grid_size(int, const char *, int &);
-        void read_weight_grid_data(int, const char *, const char *, void **, int);
+        void read_weight_grid_data(int, const char *, const char *, void **, int, bool);
         double *get_src_area() { return src_area; }
         double *get_dst_area() { return dst_area; }
 };
@@ -79,7 +79,8 @@ class H2D_remapping_wgt_file_mgt
         void append_remapping_weights(H2D_remapping_wgt_file_mgt *);
         void print();
         void clean() { H2D_remapping_wgt_files.clear(); }
-        H2D_remapping_wgt_file_info *search_H2D_remapping_weight(Original_grid_info*, Original_grid_info*);
+        H2D_remapping_wgt_file_info *search_H2D_remapping_weight(Original_grid_info*, Original_grid_info*, const char *, int);
+		H2D_remapping_wgt_file_info *search_H2D_remapping_weight(const char *);
         void write_remapping_wgt_files_info_into_array(char **, long &, long &);
         bool is_the_same_as_another(H2D_remapping_wgt_file_mgt*);
         H2D_remapping_wgt_file_mgt *clone();
@@ -159,7 +160,7 @@ class Remapping_setting
         Remapping_setting *clone();
         bool is_the_same_as_another(Remapping_setting*);
         void append_H2D_remapping_weights(Remapping_setting *);
-        H2D_remapping_wgt_file_info *search_H2D_remapping_weight(Original_grid_info *, Original_grid_info*);
+        H2D_remapping_wgt_file_info *search_H2D_remapping_weight(Original_grid_info *, Original_grid_info*, int);
         long calculate_checksum();
         void shrink(Original_grid_info*, Original_grid_info*);
 };

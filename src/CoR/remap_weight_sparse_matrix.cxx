@@ -8,6 +8,7 @@
 
 
 #include "cor_global_data.h"
+#include "global_data.h"
 #include "remap_weight_sparse_matrix.h"
 #include "remap_operator_basis.h"
 #include <stdio.h>
@@ -267,3 +268,57 @@ void Remap_weight_sparse_matrix::print()
     for (int i = 0; i < num_weights; i ++)
         printf("remapping weight (%d): src_index=%d, dst_index=%d, weight_value=%lf\n", i, cells_indexes_src[i], cells_indexes_dst[i], weight_values[i]);
 }
+
+
+Remap_weight_sparse_matrix *Remap_weight_sparse_matrix::gather(int comp_id)
+{
+	Comp_comm_group_mgt_node *comp_node = comp_comm_group_mgt_mgr->search_global_node(comp_id);
+	long *overall_cells_indexes_src = NULL;
+	long *overall_cells_indexes_dst = NULL;
+	double *overall_wgt_values = NULL;
+	long num_overall_wgts, true_num_overall_wgts, i, j, offset;
+	int *all_array_size = new int [comp_node->get_num_procs()];
+	Remap_weight_sparse_matrix *overall_sparse_matrix = NULL;
+	
+	gather_array_in_one_comp(comp_node->get_num_procs(), comp_node->get_current_proc_local_id(), (void*)cells_indexes_src, num_weights, sizeof(long), all_array_size, (void**)(&overall_cells_indexes_src), num_overall_wgts, comp_node->get_comm_group());
+	gather_array_in_one_comp(comp_node->get_num_procs(), comp_node->get_current_proc_local_id(), (void*)cells_indexes_dst, num_weights, sizeof(long), all_array_size, (void**)(&overall_cells_indexes_dst), num_overall_wgts, comp_node->get_comm_group());
+	gather_array_in_one_comp(comp_node->get_num_procs(), comp_node->get_current_proc_local_id(), (void*)weight_values, num_weights, sizeof(long), all_array_size, (void**)(&overall_wgt_values), num_overall_wgts, comp_node->get_comm_group());
+
+	if (comp_node->get_current_proc_local_id() == 0) {
+		bool *checking_mask = new bool [remap_operator->get_dst_grid()->get_grid_size()];
+		for (i = 0; i < remap_operator->get_dst_grid()->get_grid_size(); i ++)
+			checking_mask[i] = false;		
+		for (i = 0, offset = 0; i < comp_node->get_num_procs(); i ++) {
+			for (j = 0; j < all_array_size[i]; j ++) {
+				EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, overall_cells_indexes_dst[offset+j] >= 0 && overall_cells_indexes_dst[offset+j] < remap_operator->get_dst_grid()->get_grid_size(), "Software error in Remap_weight_sparse_matrix::gather: %ld vs %ld", overall_cells_indexes_dst[offset+j], remap_operator->get_dst_grid()->get_grid_size());
+				if (checking_mask[overall_cells_indexes_dst[offset+j]]) {
+					overall_cells_indexes_dst[offset+j] = -1;
+					overall_cells_indexes_src[offset+j] = -1;
+				}
+			}
+			for (j = 0; j < all_array_size[i]; j ++)
+				if (overall_cells_indexes_dst[offset+j] != -1)
+					checking_mask[overall_cells_indexes_dst[offset+j]] = true;
+			offset += all_array_size[i];
+		}
+		for (i = 0, offset = 0; i < num_overall_wgts; i ++)
+			if (overall_cells_indexes_dst[i] != -1) {
+				overall_cells_indexes_dst[offset] = overall_cells_indexes_dst[i];
+				overall_cells_indexes_src[offset] = overall_cells_indexes_src[i];
+				overall_wgt_values[offset] = overall_wgt_values[i];
+				offset ++;
+			}
+		if (num_overall_wgts != offset)
+			EXECUTION_REPORT_LOG(REPORT_LOG, comp_id, true, "When generating the overall remapping sparse matrix, repeated remapping weights are detected: %ld vs %ld", num_overall_wgts, offset);
+		num_overall_wgts = offset;
+		delete [] checking_mask;
+		
+		overall_sparse_matrix = new Remap_weight_sparse_matrix(remap_operator, num_overall_wgts, overall_cells_indexes_src, overall_cells_indexes_dst, overall_wgt_values, 0, NULL);
+		EXECUTION_REPORT_LOG(REPORT_LOG, comp_id, true, "The overall remapping sparse matrix have %ld weights", num_overall_wgts);
+	}	
+
+	delete [] all_array_size;
+	return overall_sparse_matrix;
+}
+
+

@@ -45,10 +45,10 @@
 #define RUNTYPE_BRANCH                  "branch"
 #define RUNTYPE_HYBRID                  "hybrid"
 
-#define SECONDS_PER_DAY                 86400
-#define NUM_MONTH_PER_YEAR              12
-#define NUM_DAYS_PER_NONLEAP_YEAR       365
-#define NUM_DAYS_PER_LEAP_YEAR          366
+#define SECONDS_PER_DAY                 ((long)86400)
+#define NUM_MONTH_PER_YEAR              ((long)12)
+#define NUM_DAYS_PER_NONLEAP_YEAR       ((long)365)
+#define NUM_DAYS_PER_LEAP_YEAR          ((long)366)
 
 
 #define IS_TIME_UNIT_STEP(unit)         (words_are_the_same(unit,FREQUENCY_UNIT_STEP) || words_are_the_same(unit,FREQUENCY_UNIT_STEPS) || words_are_the_same(unit,FREQUENCY_UNIT_NSTEP) || words_are_the_same(unit,FREQUENCY_UNIT_NSTEPS))
@@ -110,7 +110,7 @@ class Coupling_timer
         int get_remote_lag_count() { return remote_lag_count; }
         const char *get_frequency_unit() { return frequency_unit; }
         void write_timer_into_array(char **, long &, long &);
-        void get_time_of_next_timer_on(Time_mgt *, int, int, int, int, int, int, int &, int &, bool);
+        void get_time_of_next_timer_on(Time_mgt *, int, int, int, int, int, int, int &, int &, int &, bool);
         void reset_remote_lag_count() { remote_lag_count = 0; }
         void check_timer_format();
         bool is_the_same_with(Coupling_timer *);
@@ -225,6 +225,7 @@ class Time_mgt
         void check_timer_format(const char*, int, int, int, bool, const char*);
         bool check_time_consistency_between_components(long);
         long calculate_elapsed_day(int, int, int);
+		long get_elapsed_day_from_full_time(long);
         void get_elapsed_days_from_start_date(int*, int*);
         void get_elapsed_days_from_reference_date(int*, int*);
         void get_current_time(int&, int&, int&, int&, int, const char*);

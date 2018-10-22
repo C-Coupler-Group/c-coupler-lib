@@ -83,6 +83,7 @@ class Remap_operator_basis
         void change_remap_operator_info(const char*, Remap_grid_class*, Remap_grid_class*);
         void set_src_grid(Remap_grid_class *new_src_grid) { src_grid = new_src_grid; }
         void set_dst_grid(Remap_grid_class *new_dst_grid) { dst_grid = new_dst_grid; }
+		Remap_operator_basis *gather(int);
 };
 
 

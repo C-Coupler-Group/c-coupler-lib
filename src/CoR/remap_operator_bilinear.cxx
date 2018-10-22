@@ -471,7 +471,7 @@ void Remap_operator_bilinear::bilinear_ratios_solution1(double *dst_point_coord_
     y_diff_32 = compute_difference_of_two_coord_values(bilinear_box_vertexes_coord2_values[2], bilinear_box_vertexes_coord2_values[3], 1);
 
     ratio_u = (y_diff_03*x_diff_04-x_diff_03*y_diff_04)/(x_diff_01*y_diff_03-y_diff_01*x_diff_03);
-    EXECUTION_REPORT(REPORT_ERROR, -1, ratio_u > 0 && ratio_u < 1, "remap software error1 in bilinear_ratios_solution1\n");
+    EXECUTION_REPORT(REPORT_ERROR, -1, ratio_u >= 0 && ratio_u <= 1, "remap software error1 in bilinear_ratios_solution1\n");
     
     coord_values_P5[0] = bilinear_box_vertexes_coord1_values[0] + ratio_u*x_diff_01;
     coord_values_P5[1] = bilinear_box_vertexes_coord2_values[0] + ratio_u*y_diff_01;

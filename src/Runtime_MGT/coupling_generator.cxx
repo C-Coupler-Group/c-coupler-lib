@@ -989,7 +989,7 @@ void Coupling_generator::synchronize_latest_connection_id(MPI_Comm comm)
 }
 
 
-void Coupling_generator::generate_coupling_procedures_common(int API_id, MPI_Comm comm, bool is_overall_generation, const char *annotation)
+void Coupling_generator::generate_coupling_procedures_common(int API_id, MPI_Comm comm, bool is_overall_generation, bool is_internal_generation, const char *annotation)
 {
     char *temp_array_buffer = NULL, field_name[NAME_STR_SIZE];
     long current_array_buffer_size, max_array_buffer_size;
@@ -1051,7 +1051,7 @@ void Coupling_generator::generate_coupling_procedures_common(int API_id, MPI_Com
                     if (field_index != 0) {
                         if (configuration_export_producer_info.size() == 0) {                        
                             for (int l = 0; l < export_fields_dst_components[field_index].size(); l ++) {
-                                if (words_are_the_same(export_fields_dst_components[field_index][l].first, all_comp_fullnames_for_coupling_generation[i]))
+                                if (!is_internal_generation && words_are_the_same(export_fields_dst_components[field_index][l].first, all_comp_fullnames_for_coupling_generation[i]))
                                     continue;
                                 src_comp_interface.first = strdup(export_fields_dst_components[field_index][l].first);
                                 src_comp_interface.second = strdup(export_fields_dst_components[field_index][l].second);
@@ -1185,7 +1185,7 @@ void Coupling_generator::generate_coupling_procedures_common(int API_id, MPI_Com
 
 
 
-void Coupling_generator::generate_coupling_procedures_internal(int comp_id, bool family_generation, const char *annotation)
+void Coupling_generator::generate_coupling_procedures_internal(int comp_id, bool family_generation, bool is_internal_generation, const char *annotation)
 {
     char *temp_array_buffer = NULL;
     long current_array_buffer_size, max_array_buffer_size;
@@ -1193,11 +1193,11 @@ void Coupling_generator::generate_coupling_procedures_internal(int comp_id, bool
 
     if (family_generation) {
         comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id, true, "in Coupling_generator::generate_coupling_procedures")->get_all_descendant_real_comp_fullnames(comp_id, all_comp_fullnames_for_coupling_generation, &temp_array_buffer, max_array_buffer_size, current_array_buffer_size);
-        generate_coupling_procedures_common(API_ID_COUPLING_GEN_FAMILY, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id, "in Coupling_generator::generate_coupling_procedures"), (comp_id & TYPE_ID_SUFFIX_MASK)==0, annotation);
+        generate_coupling_procedures_common(API_ID_COUPLING_GEN_FAMILY, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id, "in Coupling_generator::generate_coupling_procedures"), (comp_id & TYPE_ID_SUFFIX_MASK)==0, is_internal_generation, annotation);
     }
     else {
         all_comp_fullnames_for_coupling_generation.push_back(strdup(comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id, true, "in Coupling_generator::generate_coupling_procedures")->get_full_name()));
-        generate_coupling_procedures_common(API_ID_COUPLING_GEN_INDIVIDUAL, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id, "in Coupling_generator::generate_coupling_procedures"), (comp_id & TYPE_ID_SUFFIX_MASK)==0, annotation);
+        generate_coupling_procedures_common(API_ID_COUPLING_GEN_INDIVIDUAL, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id, "in Coupling_generator::generate_coupling_procedures"), (comp_id & TYPE_ID_SUFFIX_MASK)==0, is_internal_generation, annotation);
     }
 }
 
@@ -1415,7 +1415,7 @@ void Coupling_generator::do_external_coupling_generation(int API_id, const char 
     EXECUTION_REPORT(REPORT_ERROR, -1, all_comp_nodes.size() == all_comp_fullnames_for_coupling_generation.size(), "Software error in Coupling_generator::do_external_coupling_generation: wrong all_comp_nodes.size()");
 
     if (all_comp_fullnames_for_coupling_generation.size() == 1) {
-        generate_coupling_procedures_internal(all_comp_nodes[0]->get_comp_id(), individual_or_family_generation[0] == 2, annotation);
+        generate_coupling_procedures_internal(all_comp_nodes[0]->get_comp_id(), individual_or_family_generation[0] == 2, false, annotation);
         delete [] temp_int_array;
         return;
     }    
@@ -1569,7 +1569,7 @@ void Coupling_generator::do_external_coupling_generation(int API_id, const char 
         for (int i = 0; i < all_comp_fullnames_for_coupling_generation.size(); i ++)
             EXECUTION_REPORT_LOG(REPORT_ERROR, -1, true, "comp for external generation %s at proc %d\n", all_comp_fullnames_for_coupling_generation[i], current_proc_id_in_union_comm);
     }
-    generate_coupling_procedures_common(API_id, union_comm, false, annotation);
+    generate_coupling_procedures_common(API_id, union_comm, false, false, annotation);
 
     clear();
     delete [] temp_int_array;

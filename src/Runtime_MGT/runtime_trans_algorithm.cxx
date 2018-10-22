@@ -255,7 +255,7 @@ bool Runtime_trans_algorithm::set_local_tags()
 {
     MPI_Win_lock(MPI_LOCK_SHARED, current_proc_id_union_comm, 0, data_win);
     send_tag_buf[0] = current_field_local_recv_count;
-    send_tag_buf[1] = ((long)time_mgr->get_current_num_elapsed_day())*100000 + ((long)time_mgr->get_current_second());
+    send_tag_buf[1] = time_mgr->get_current_full_time();
     send_tag_buf[2] = (long) time_mgr->get_runtype_mark();
     send_tag_buf[3] = time_mgr->get_restart_full_time();
     current_field_local_recv_count ++;
@@ -325,7 +325,7 @@ void Runtime_trans_algorithm::receive_data_in_temp_buffer()
     if (timer_not_bypassed && last_history_receive_buffer_index != -1) {
         int comp_min_remote_lag_seconds = comp_node->get_min_remote_lag_seconds();
         long current_receiver_full_seconds = ((long)time_mgr->get_current_num_elapsed_day())*86400 + time_mgr->get_current_second();
-        long current_sender_full_seconds = ((current_receive_field_sender_time%((long)100000000000000))/((long)100000))*86400 + (current_receive_field_sender_time%((long)100000));
+        long current_sender_full_seconds = time_mgr->get_elapsed_day_from_full_time(current_receive_field_sender_time%((long)10000000000000000))*86400 + (current_receive_field_sender_time%((long)100000));
         if (current_sender_full_seconds + 2*comp_min_remote_lag_seconds > current_receiver_full_seconds)
             return;
     }
@@ -551,7 +551,7 @@ bool Runtime_trans_algorithm::send(bool bypass_timer)
 
     local_comp_node->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMMUNICATION, TIMING_COMMUNICATION_SEND, -1, remote_comp_full_name);
 
-    long current_full_time = ((long)time_mgr->get_current_num_elapsed_day())*100000 + time_mgr->get_current_second();
+    long current_full_time = time_mgr->get_current_full_time();
     int offset = 0;
     //for (int i = 0; i < num_remote_procs; i ++) {
     for (int i = 0; i < index_remote_procs_with_common_data.size(); i ++) {
@@ -572,7 +572,7 @@ bool Runtime_trans_algorithm::send(bool bypass_timer)
 
         tag_buf = (long *) (total_buf + recv_displs_in_current_proc[remote_proc_index]);
         if (bypass_timer) {
-            tag_buf[0] = current_full_time + bypass_counter*((long)100000000000000);
+            tag_buf[0] = current_full_time + (bypass_counter%8)*((long)10000000000000000);
             tag_buf[1] = -999;
         }
         else {
@@ -598,7 +598,7 @@ bool Runtime_trans_algorithm::send(bool bypass_timer)
     EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, offset <= data_buf_size, "Software error in Runtime_trans_algorithm::send: wrong data_buf_size: %d vs %d", offset, data_buf_size);
 
     if (bypass_timer)
-        last_receive_sender_time = bypass_counter*((long)100000000000000);
+        last_receive_sender_time = (bypass_counter%8)*((long)10000000000000000);
     else last_receive_sender_time = current_remote_fields_time;
 
     EXECUTION_REPORT_LOG(REPORT_LOG, comp_id, true, "Finish sending data to component \"%s\": %d", remote_comp_full_name, comm_tag);
@@ -642,7 +642,7 @@ bool Runtime_trans_algorithm::recv(bool bypass_timer)
     if (index_remote_procs_with_common_data.size() > 0)
         last_receive_sender_time = history_receive_sender_time[last_history_receive_buffer_index];
     else if (bypass_timer)
-        last_receive_sender_time = bypass_counter*((long)100000000000000);
+        last_receive_sender_time = (bypass_counter%8)*((long)10000000000000000);
     else last_receive_sender_time = current_remote_fields_time;
 
     for (int j = 0; j < num_transfered_fields; j ++) {
@@ -665,7 +665,7 @@ bool Runtime_trans_algorithm::recv(bool bypass_timer)
 }
 
 
-long Runtime_trans_algorithm::get_history_receive_sender_time(int j)
+long Runtime_trans_algorithm::get_history_receive_sender_time()
 {
     return last_receive_sender_time;
 }

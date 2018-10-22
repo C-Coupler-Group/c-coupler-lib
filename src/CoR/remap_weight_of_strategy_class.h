@@ -77,6 +77,7 @@ class Remap_weight_of_operator_class
         void renew_vertical_remap_weights(Remap_grid_class *runtime_remap_grid_src, Remap_grid_class *runtime_remap_grid_dst);
         void mark_empty_remap_weight() { empty_remap_weight = true; }
         bool is_remap_weight_empty() { return empty_remap_weight; }        
+		void write_overall_remapping_weights(int);
 };
 
 
@@ -103,7 +104,7 @@ class Remap_weight_of_strategy_class
 
     public:
         Remap_weight_of_strategy_class(const char*, const char*, const char*, const char*, const char*, const char*, bool);
-        Remap_weight_of_strategy_class(const char *, Remap_strategy_class *, Remap_grid_class *, Remap_grid_class *, const char *);
+        Remap_weight_of_strategy_class(const char *, Remap_strategy_class *, Remap_grid_class *, Remap_grid_class *, const char *, bool, int);
         void set_basic_fields(const char*, Remap_strategy_class*, Remap_grid_class*, Remap_grid_class*);
         void initialize_object();
         Remap_weight_of_strategy_class() { initialize_object(); }
@@ -129,11 +130,13 @@ class Remap_weight_of_strategy_class
         void add_remap_weight_of_operators_to_manager(bool);
         int get_num_remap_weights_of_operators() { return remap_weights_of_operators.size(); }
         Remap_weight_of_operator_class *get_remap_weights_of_operator(int i) { return remap_weights_of_operators[i]; }
+		void add_remap_weights_of_operator(Remap_weight_of_operator_class *remap_weights_of_operator) { remap_weights_of_operators.push_back(remap_weights_of_operator); }
         int get_num_field_data_grids_in_remapping_process() { return num_field_data_grids_in_remapping_process; }
         Remap_grid_class *get_field_data_grid_in_remapping_process(int);
         Remap_grid_data_class *get_runtime_mask_field_in_remapping_process(int);
         Remap_weight_of_operator_class *get_dynamic_V1D_remap_weight_of_operator();
         void mark_empty_remap_weight() { remap_weights_of_operators[remap_weights_of_operators.size()-1]->mark_empty_remap_weight(); }
+		void write_overall_H2D_remapping_weights(int);
 };
 
 

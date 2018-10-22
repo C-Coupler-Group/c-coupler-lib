@@ -234,7 +234,10 @@ void get_API_hint(int comp_id, int API_id, char *API_label)
         case API_ID_INTERFACE_CHECK_IMPORT_FIELD_CONNECTED:
             sprintf(API_label, "CCPL_check_is_import_field_connected");
             break;
-        case API_ID_INTERFACE_GET_LOCAL_COMP_FULL_NAME:
+		case API_ID_INTERFACE_GET_SENDER_TIME:
+			sprintf(API_label, "CCPL_get_import_fields_sender_time");
+			break;
+        case API_ID_COMP_MGT_GET_LOCAL_COMP_FULL_NAME:
             sprintf(API_label, "CCPL_get_local_comp_full_name");
             break;
         case API_ID_TIME_MGT_DEFINE_SINGLE_TIMER:

@@ -141,7 +141,7 @@ void Remap_grid_data_class::set_masked_cell_to_missing_value()
     if (coord_value_grid == NULL || coord_value_grid->get_grid_mask_field() == NULL)
         return;
 
-    if (!words_are_the_same(grid_data_field->data_type_in_application, DATA_TYPE_FLOAT) && words_are_the_same(grid_data_field->data_type_in_application, DATA_TYPE_DOUBLE))
+    if (!(words_are_the_same(grid_data_field->data_type_in_application, DATA_TYPE_FLOAT) && words_are_the_same(grid_data_field->data_type_in_application, DATA_TYPE_DOUBLE)))
         return;
     
     bool *mask = (bool*) coord_value_grid->get_grid_mask_field()->grid_data_field->data_buf;

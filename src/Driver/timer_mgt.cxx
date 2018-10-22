@@ -155,7 +155,7 @@ bool Coupling_timer::is_timer_on(int current_year, int current_month, int curren
 }
 
 
-void Coupling_timer::get_time_of_next_timer_on(Time_mgt *time_mgr, int current_year, int current_month, int current_day, int current_second, int current_num_elapsed_days, int time_step_in_second, int &next_timer_num_elapsed_days, int &next_timer_second, bool advance)
+void Coupling_timer::get_time_of_next_timer_on(Time_mgt *time_mgr, int current_year, int current_month, int current_day, int current_second, int current_num_elapsed_days, int time_step_in_second, int &next_timer_num_elapsed_days, int &next_timer_date, int &next_timer_second, bool advance)
 {    
     if (advance)
         time_mgr->advance_time(current_year, current_month, current_day, current_second, current_num_elapsed_days, time_step_in_second);
@@ -164,6 +164,7 @@ void Coupling_timer::get_time_of_next_timer_on(Time_mgt *time_mgr, int current_y
         time_mgr->advance_time(current_year, current_month, current_day, current_second, current_num_elapsed_days, time_step_in_second);
 
     next_timer_num_elapsed_days = current_num_elapsed_days;
+	next_timer_date = current_year*10000 + current_month*100 + current_day;
     next_timer_second = current_second;
 }
 
@@ -282,12 +283,12 @@ bool Timer_mgt::is_timer_on(int timer_id, const char *annotation)
 bool Time_mgt::check_is_time_legal(int year, int month, int day, int second, const char *report_label)
 {
     if (report_label != NULL) {
-        EXECUTION_REPORT(REPORT_ERROR,-1, year >= 0, "The time format is wrong: the year of simulation run can not be negative. Please check the model code with the annotation \"%s\"", report_label);
-        EXECUTION_REPORT(REPORT_ERROR,-1, second >=0 && second <= SECONDS_PER_DAY, "The time format is wrong: the second of simulation run must between 0 and SECONDS_PER_DAY. Please check the model code with the annotation \"%s\"", report_label);
-           EXECUTION_REPORT(REPORT_ERROR,-1, month >= 1 && month <= 12, "The time format is wrong: the month must be between 1 and 12. Please check the model code with the annotation \"%s\"", report_label);
+        EXECUTION_REPORT(REPORT_ERROR,-1, year >= 0, "The time format (%d-%d-%d-%d) is wrong: the year of simulation run can not be negative. Please check the model code with the annotation \"%s\"", year, month, day, second, report_label);
+        EXECUTION_REPORT(REPORT_ERROR,-1, second >=0 && second <= SECONDS_PER_DAY, "The time format (%d-%d-%d-%d) is wrong: the second of simulation run must between 0 and SECONDS_PER_DAY. Please check the model code with the annotation \"%s\"", year, month, day, second, report_label);
+           EXECUTION_REPORT(REPORT_ERROR,-1, month >= 1 && month <= 12, "The time format (%d-%d-%d-%d) is wrong: the month must be between 1 and 12. Please check the model code with the annotation \"%s\"", year, month, day, second, report_label);
         if (leap_year_on && is_a_leap_year(year))
-            EXECUTION_REPORT(REPORT_ERROR,-1, day >= 1 && day <= num_days_of_month_of_leap_year[month-1], "The time format is wrong: the day must be between 1 and %d. Please check the model code with the annotation \"%s\"", num_days_of_month_of_leap_year[month-1], report_label);
-        else EXECUTION_REPORT(REPORT_ERROR,-1, day >= 1 && day <= num_days_of_month_of_nonleap_year[month-1], "The time format is wrong: the day must be between 1 and %d. Please check the model code with the annotation \"%s\"", num_days_of_month_of_nonleap_year[month-1], report_label);
+            EXECUTION_REPORT(REPORT_ERROR,-1, day >= 1 && day <= num_days_of_month_of_leap_year[month-1], "The time format (%d-%d-%d-%d) is wrong: the day must be between 1 and %d. Please check the model code with the annotation \"%s\"", year, month, day, second, num_days_of_month_of_leap_year[month-1], report_label);
+        else EXECUTION_REPORT(REPORT_ERROR,-1, day >= 1 && day <= num_days_of_month_of_nonleap_year[month-1], "The time format (%d-%d-%d-%d) is wrong: the day must be between 1 and %d. Please check the model code with the annotation \"%s\"", year, month, day, second, num_days_of_month_of_nonleap_year[month-1], report_label);
         return true;
     }
     else {
@@ -607,6 +608,16 @@ long Time_mgt::calculate_elapsed_day(int year, int month, int day)
         return year*NUM_DAYS_PER_NONLEAP_YEAR + num_leap_year + elapsed_days_on_start_of_month_of_leap_year[month-1] + day - 1;
 
     return year*NUM_DAYS_PER_NONLEAP_YEAR + num_leap_year + elapsed_days_on_start_of_month_of_nonleap_year[month-1] + day - 1;
+}
+
+
+long Time_mgt::get_elapsed_day_from_full_time(long full_time)
+{
+	int year = full_time / 1000000000;
+	int month = full_time%((long)1000000000) / 10000000;
+	int day = full_time%((long)10000000) / 100000;
+
+	return calculate_elapsed_day(year, month, day);
 }
 
 

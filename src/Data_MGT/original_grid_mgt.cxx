@@ -658,8 +658,8 @@ int Original_grid_mgt::create_H2D_grid_from_global_data(int comp_id, const char 
     remap_grid_manager->add_remap_grid(CoR_lon_grid);
     remap_grid_manager->add_remap_grid(CoR_lat_grid);
     remap_grid_manager->add_remap_grid(CoR_H2D_grid);
-    original_grids.push_back(new Original_grid_info(comp_id, original_grids.size()|TYPE_GRID_LOCAL_ID_PREFIX, grid_name, annotation, CoR_H2D_grid, true));
     CoR_H2D_grid->set_grid_boundary(min_lon_value, max_lon_value, min_lat_value, max_lat_value);
+    original_grids.push_back(new Original_grid_info(comp_id, original_grids.size()|TYPE_GRID_LOCAL_ID_PREFIX, grid_name, annotation, CoR_H2D_grid, true));
     CoR_H2D_grid->end_grid_definition_stage(NULL);
 	
     return original_grids[original_grids.size()-1]->get_grid_id();

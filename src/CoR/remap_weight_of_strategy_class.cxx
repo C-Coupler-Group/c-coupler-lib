@@ -334,6 +334,35 @@ void Remap_weight_of_operator_class::renew_vertical_remap_weights(Remap_grid_cla
 }
 
 
+void Remap_weight_of_operator_class::write_overall_remapping_weights(int comp_id)
+{
+	char default_wgt_file_name[NAME_STR_SIZE], full_default_wgt_file_name[NAME_STR_SIZE*2];
+	Remap_operator_basis *overall_remap_operator;
+	Comp_comm_group_mgt_node *comp_node = comp_comm_group_mgt_mgr->search_global_node(comp_id);
+
+	
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, remap_weights_of_operator_instances.size() == 1, "Software error in Remap_weight_of_operator_class::write_overall_remapping_weights");
+	sprintf(default_wgt_file_name, "DEFAULT_WGT_of___%s___FROM___%s___TO___%s___AT___%s.nc", remap_weights_of_operator_instances[0]->original_remap_operator->get_operator_name(), remap_weights_of_operator_instances[0]->operator_grid_src->get_grid_name(), remap_weights_of_operator_instances[0]->operator_grid_dst->get_grid_name(), comp_node->get_full_name());
+	sprintf(full_default_wgt_file_name, "%s/%s", comp_comm_group_mgt_mgr->get_internal_remapping_weights_dir(), default_wgt_file_name);
+	EXECUTION_REPORT_LOG(REPORT_LOG, comp_id, true, "The default H2D weight file name is \"%s\"", default_wgt_file_name);
+	overall_remap_operator = remap_weights_of_operator_instances[0]->duplicated_remap_operator->gather(comp_id);
+	if (comp_node->get_current_proc_local_id() == 0) {
+		Remap_weight_of_operator_instance_class *overall_remap_weight_of_operator_instance = new Remap_weight_of_operator_instance_class(operator_grid_src, operator_grid_dst, 0, remap_weights_of_operator_instances[0]->original_remap_operator, overall_remap_operator);
+		Remap_weight_of_operator_class *overall_remap_weight_of_operator = new Remap_weight_of_operator_class(operator_grid_src, operator_grid_dst, original_remap_operator, operator_grid_src, operator_grid_dst);
+		overall_remap_weight_of_operator->remap_weights_of_operator_instances.push_back(overall_remap_weight_of_operator_instance);
+		Remap_weight_of_strategy_class *overall_remap_weights = new Remap_weight_of_strategy_class("overall_remapping_weights", NULL, operator_grid_src, operator_grid_dst, NULL, false, comp_id);
+		overall_remap_weights->add_remap_weights_of_operator(overall_remap_weight_of_operator);
+		IO_netcdf *io_netcdf = new IO_netcdf(default_wgt_file_name, full_default_wgt_file_name, "w", true);
+		int last_execution_phase_number = execution_phase_number;
+		execution_phase_number = 1;
+		io_netcdf->write_remap_weights(overall_remap_weights);
+		execution_phase_number = last_execution_phase_number;
+		delete io_netcdf;
+		delete overall_remap_weights;
+	}
+}
+
+
 void Remap_weight_of_strategy_class::initialize_object()
 {
     dynamic_vertical_remapping_weights_src = false;
@@ -359,7 +388,7 @@ Remap_weight_of_strategy_class::Remap_weight_of_strategy_class(const char *objec
     generate_remapping_related_grids();
 
     if (!read_from_io)
-        remap_strategy->calculate_remapping_weights(this, NULL);
+        remap_strategy->calculate_remapping_weights(this, NULL, -1);
     else {
         if (words_are_the_same(weight_IO_format, "SCRIP")) 
             ((IO_netcdf*) (io_manager->search_IO_object(input_IO_file_name)))->read_remap_weights(this, remap_strategy, is_master_process_in_computing_node);
@@ -372,7 +401,7 @@ Remap_weight_of_strategy_class::Remap_weight_of_strategy_class(const char *objec
 
 
 Remap_weight_of_strategy_class::Remap_weight_of_strategy_class(const char *object_name, Remap_strategy_class *remap_strategy, 
-                                                               Remap_grid_class *data_grid_src, Remap_grid_class *data_grid_dst, const char *H2D_remapping_wgt_file)
+                                                               Remap_grid_class *data_grid_src, Remap_grid_class *data_grid_dst, const char *H2D_remapping_wgt_file, bool calculate_wgts, int wgt_cal_comp_id)
 {
     initialize_object();
     strcpy(this->object_name, object_name);
@@ -380,10 +409,12 @@ Remap_weight_of_strategy_class::Remap_weight_of_strategy_class(const char *objec
     this->data_grid_src = data_grid_src;
     this->data_grid_dst = data_grid_dst;
 
-    EXECUTION_REPORT(REPORT_ERROR, -1, remap_strategy != NULL && data_grid_src != NULL && data_grid_dst != NULL, "C-Coupler error in Remap_weight_of_strategy_class::Remap_weight_of_strategy_class");
+    EXECUTION_REPORT(REPORT_ERROR, -1, (!calculate_wgts || remap_strategy != NULL) && data_grid_src != NULL && data_grid_dst != NULL, "C-Coupler error in Remap_weight_of_strategy_class::Remap_weight_of_strategy_class");
 
-    generate_remapping_related_grids();
-    remap_strategy->calculate_remapping_weights(this, H2D_remapping_wgt_file);
+	if (calculate_wgts) {
+	    generate_remapping_related_grids();
+	    remap_strategy->calculate_remapping_weights(this, H2D_remapping_wgt_file, wgt_cal_comp_id);
+	}
 }
 
 
@@ -1041,6 +1072,14 @@ Remap_weight_of_operator_class *Remap_weight_of_strategy_class::get_dynamic_V1D_
             return remap_weights_of_operators[i];
     
     return NULL;
+}
+
+
+void Remap_weight_of_strategy_class::write_overall_H2D_remapping_weights(int comp_id)
+{
+	for (int i = 0; i < remap_weights_of_operators.size(); i ++)
+		if (remap_weights_of_operators[i]->operator_grid_src->get_is_sphere_grid())
+			remap_weights_of_operators[i]->write_overall_remapping_weights(comp_id);
 }
 
 
