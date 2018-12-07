@@ -25,7 +25,7 @@ void Remap_operator_bilinear::set_parameter(const char *parameter_name, const ch
         if (words_are_the_same(parameter_value, "true"))
             enable_extrapolate = true;
         else if (words_are_the_same(parameter_value, "false"))
-            enable_extrapolate = true;
+            enable_extrapolate = false;
         else EXECUTION_REPORT(REPORT_ERROR, -1, false, "The parameter value must be \"true\" or \"false\"\n");
     }
     else EXECUTION_REPORT(REPORT_ERROR, -1, false, "bilinear algorithm does not have the parameter to be set\n");
@@ -488,7 +488,7 @@ void Remap_operator_bilinear::bilinear_ratios_solution1(double *dst_point_coord_
                                                   coord_values_P5[1],
                                                   false);
     ratio_v = dist_54 / dist_56;
-    EXECUTION_REPORT(REPORT_ERROR, -1, ratio_v > 0 && ratio_v < 1, "remap software error2 in bilinear_ratios_solution1\n");
+    EXECUTION_REPORT(REPORT_ERROR, -1, ratio_v >= 0 && ratio_v <= 1, "remap software error2 in bilinear_ratios_solution1\n");
 }
 
 
@@ -535,7 +535,7 @@ void Remap_operator_bilinear::bilinear_one_ratio_solution_of_quadratic_equation(
     ratio_u2 = (-coef_B - sqrt(coef_B*coef_B-4*coef_A*coef_C))/(2*coef_A);
 
     ratio_u = -1.0;
-    if (ratio_u1 > 0 && ratio_u1 < 1) {
+    if (ratio_u1 >= 0 && ratio_u1 <= 1) {
         ratio_u = ratio_u1;
         ratio_u_false = ratio_u2;
     }
@@ -544,7 +544,7 @@ void Remap_operator_bilinear::bilinear_one_ratio_solution_of_quadratic_equation(
         ratio_u_false = ratio_u1;
     }
 
-    EXECUTION_REPORT(REPORT_ERROR, -1, ratio_u > 0 && ratio_u < 1, "remap software error3 in bilinear_one_ratio_solution_of_quadratic_equation");
+    EXECUTION_REPORT(REPORT_ERROR, -1, ratio_u >= 0 && ratio_u <= 1, "remap software error3 in bilinear_one_ratio_solution_of_quadratic_equation");
     EXECUTION_REPORT(REPORT_ERROR, -1, ratio_u_false < 0 || ratio_u_false > 1, "remap software error4 in bilinear_one_ratio_of_solution_quadratic_equation");
 }
 

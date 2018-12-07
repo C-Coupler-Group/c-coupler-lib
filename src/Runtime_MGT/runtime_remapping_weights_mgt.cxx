@@ -349,10 +349,12 @@ void Runtime_remapping_weights_mgt::transfer_runtime_remapping_weights(Runtime_r
     if (comp_node_from->get_current_proc_local_id() != -1) {
         if (remapping_weights_from->get_src_H2D_grid_area() != NULL) {
             temp_src_H2D_grid_size = remapping_weights_from->get_src_original_grid()->get_original_CoR_grid()->get_grid_size()*sizeof(double);
-            temp_dst_H2D_grid_size = remapping_weights_from->get_dst_original_grid()->get_original_CoR_grid()->get_grid_size()*sizeof(double);
             temp_src_H2D_grid_area = new double [remapping_weights_from->get_src_original_grid()->get_original_CoR_grid()->get_grid_size()];
-            temp_dst_H2D_grid_area = new double [remapping_weights_from->get_dst_original_grid()->get_original_CoR_grid()->get_grid_size()];
             memcpy(temp_src_H2D_grid_area, remapping_weights_from->get_src_H2D_grid_area(), temp_src_H2D_grid_size);
+        }
+        if (remapping_weights_from->get_dst_H2D_grid_area() != NULL) {
+            temp_dst_H2D_grid_size = remapping_weights_from->get_dst_original_grid()->get_original_CoR_grid()->get_grid_size()*sizeof(double);
+            temp_dst_H2D_grid_area = new double [remapping_weights_from->get_dst_original_grid()->get_original_CoR_grid()->get_grid_size()];
             memcpy(temp_dst_H2D_grid_area, remapping_weights_from->get_dst_H2D_grid_area(), temp_dst_H2D_grid_size);
         }
     }

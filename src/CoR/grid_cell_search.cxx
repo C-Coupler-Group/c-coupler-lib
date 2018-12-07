@@ -655,7 +655,6 @@ void H2D_grid_cell_search_engine::recursively_search_initial_boundary(double cen
 void H2D_grid_cell_search_engine::search_nearest_points_var_number(int num_required_points, double dst_point_lon, double dst_point_lat, int &num_found_points, long *found_points_indx, double *found_points_dist, bool early_quit)
 {
     bool have_the_same_point = false;
-    double old_dist_threshold;
 
 
     if (num_required_points > remap_grid->get_grid_size())
@@ -666,11 +665,12 @@ void H2D_grid_cell_search_engine::search_nearest_points_var_number(int num_requi
     while (num_found_points < num_required_points) {
         num_found_points = 0;
         have_the_same_point = root_tile->search_points_within_distance(dist_threshold, dst_point_lon, dst_point_lat, num_found_points, index_buffer, dist_buffer, early_quit);
-        if (num_found_points== 0)
+        if (num_found_points == 0) {
             dist_threshold *= 2;
+			continue;
+        }
         if (have_the_same_point && early_quit)
             break;
-        old_dist_threshold = dist_threshold;
         dist_threshold *= sqrt(((double)num_required_points)/((double)num_found_points))*1.1;
     }
 

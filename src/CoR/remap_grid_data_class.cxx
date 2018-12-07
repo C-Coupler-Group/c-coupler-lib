@@ -141,23 +141,30 @@ void Remap_grid_data_class::set_masked_cell_to_missing_value()
     if (coord_value_grid == NULL || coord_value_grid->get_grid_mask_field() == NULL)
         return;
 
-    if (!(words_are_the_same(grid_data_field->data_type_in_application, DATA_TYPE_FLOAT) && words_are_the_same(grid_data_field->data_type_in_application, DATA_TYPE_DOUBLE)))
+    if (!words_are_the_same(grid_data_field->data_type_in_application, DATA_TYPE_FLOAT) && !words_are_the_same(grid_data_field->data_type_in_application, DATA_TYPE_DOUBLE))
         return;
-    
+
+	coord_value_grid->get_grid_mask_field()->interchange_grid_data(coord_value_grid->get_grid_mask_field()->get_coord_value_grid());
+	this->interchange_grid_data(coord_value_grid->get_grid_mask_field()->get_coord_value_grid());
+
+	long mask_size = coord_value_grid->get_grid_mask_field()->grid_data_field->required_data_size;
     bool *mask = (bool*) coord_value_grid->get_grid_mask_field()->grid_data_field->data_buf;
     if (words_are_the_same(grid_data_field->data_type_in_application, DATA_TYPE_FLOAT)) {
-        float *data_buf = (float*) grid_data_field->data_buf;
-        for (int i = 0; i < grid_data_field->required_data_size; i ++)
-            if (!mask[i])
-                data_buf[i] = (float) DEFAULT_FILL_VALUE;
+		for (int j = 0; j < grid_data_field->required_data_size/mask_size; j ++) {
+	        float *data_buf = ((float*) grid_data_field->data_buf) + mask_size*j;
+	        for (int i = 0; i < mask_size; i ++)
+    	        if (!mask[i])
+        	        data_buf[i] = (float) DEFAULT_FILL_VALUE;
+		}
     }
     else {
-        double *data_buf = (double*) grid_data_field->data_buf;
-        for (int i = 0; i < grid_data_field->required_data_size; i ++)
-            if (!mask[i])
-                data_buf[i] = (double) DEFAULT_FILL_VALUE;        
+		for (int j = 0; j < grid_data_field->required_data_size/mask_size; j ++) {
+	        double *data_buf = ((double*) grid_data_field->data_buf) + mask_size*j;
+	        for (int i = 0; i < mask_size; i ++)
+	            if (!mask[i])
+	                data_buf[i] = (double) DEFAULT_FILL_VALUE;        
+		}
     }
-            
 }
 
 

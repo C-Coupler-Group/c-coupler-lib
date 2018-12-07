@@ -187,7 +187,7 @@ void search_cell_in_src_grid(double *point_coord_values, long *cell_index, bool 
     EXECUTION_REPORT(REPORT_ERROR, -1, have_fetched_dst_grid_cell_coord_values, "remap software error search_cell_in_src_grid\n");
     if (using_rotated_grid_data)
         *cell_index = current_runtime_remap_operator_grid_src->get_rotated_remap_operator_grid()->search_cell_of_locating_point(point_coord_values, accurately_match);
-    else *cell_index = current_runtime_remap_operator_grid_src->get_rotated_remap_operator_grid()->search_cell_of_locating_point(point_coord_values, accurately_match);
+    else *cell_index = current_runtime_remap_operator_grid_src->search_cell_of_locating_point(point_coord_values, accurately_match);
 }
 
 

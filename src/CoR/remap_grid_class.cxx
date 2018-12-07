@@ -2562,7 +2562,14 @@ void Remap_grid_class::check_center_vertex_values_consistency_2D()
                                  center_field1->is_unit_degree(),
                                  center_field2->is_unit_degree(),
                                  get_is_sphere_grid())) {
-            EXECUTION_REPORT(REPORT_ERROR, -1, false, "center coordinate values are not consistent with vertex coordinate values in grid \"%s\": each center point must be surrounded by the polygon determined by the corresponding vertex points\n", grid_name);
+            char error_string1[65536], error_string2[1024];
+			sprintf(error_string1, "( ");
+			for (j = 0; j < num_vertexes; j ++) {
+				sprintf(error_string2, "(lon=%lf,lat=%lf) ", vertex_coord1_values[j], vertex_coord2_values[j]); 
+				strcat(error_string1, error_string2);
+			}
+			strcat(error_string1,")");
+            EXECUTION_REPORT(REPORT_ERROR, -1, false, "At the %dth point of the grid \"%s\", the center coordinate values (lon=%lf,lat=%lf) are not consistent with vertex coordinate values (%s): each center point must be surrounded by the polygon determined by the corresponding vertex points.", i+1, grid_name, center_coord1_value, center_coord2_value, error_string1);
         }
     }
 }
