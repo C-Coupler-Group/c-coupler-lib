@@ -31,6 +31,8 @@ Remap_grid_data_class::Remap_grid_data_class(Remap_grid_class *coord_value_grid,
 {
     this->grid_data_field = grid_data_field;
     generate_grid_info(coord_value_grid);
+	if (coord_value_grid != NULL)
+		EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "allocate field data regarding to grid \"%s\" with size %ld", coord_value_grid->get_grid_name(), grid_data_field->required_data_size*get_data_type_size(grid_data_field->data_type_in_application));
 }
 
 
@@ -170,6 +172,8 @@ void Remap_grid_data_class::set_masked_cell_to_missing_value()
 
 Remap_grid_data_class::~Remap_grid_data_class()
 {
+	if (coord_value_grid != NULL)
+		EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "deallocate field data regarding to grid \"%s\" with size %ld", coord_value_grid->get_grid_name(), grid_data_field->required_data_size*get_data_type_size(grid_data_field->data_type_in_application));
     delete grid_data_field;
 }
 

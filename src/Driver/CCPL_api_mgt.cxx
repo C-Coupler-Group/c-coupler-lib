@@ -320,8 +320,9 @@ void synchronize_comp_processes_for_API(int comp_id, int API_id, MPI_Comm comm, 
     if (comm == MPI_COMM_NULL)
         comm = comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id, "in synchronize_comp_processes_for_API");
 
-    if (hint != NULL)
+    if (hint != NULL) {
         EXECUTION_REPORT_LOG(REPORT_LOG, comp_id, true, "Before the MPI_barrier for synchronizing all processes of a communicator for %s at C-Coupler API \"%s\" with model code annotation \"%s\"", hint, API_label_local, annotation);    
+    }
     else EXECUTION_REPORT_LOG(REPORT_LOG, comp_id, true, "Before the MPI_barrier for synchronizing all processes of a communicator at C-Coupler API \"%s\" with model code annotation \"%s\"", API_label_local, annotation);
     MPI_Barrier(comm);
     if (hint != NULL) {

@@ -460,8 +460,16 @@ void Coupling_connection::generate_interpolation(bool has_frac_remapping)
     for (int i = 0; i < fields_name.size(); i ++) {
         src_fields_info[i]->runtime_remapping_weights = NULL;
         dst_fields_info[i]->runtime_remapping_weights = NULL;
-        if (words_are_the_same(dst_fields_info[i]->grid_name, "NULL"))
+        if (words_are_the_same(dst_fields_info[i]->grid_name, "NULL")) {
+			if (current_proc_id_dst_comp != -1)
+				EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, dst_comp_node->get_comp_id(), words_are_the_same(src_fields_info[i]->grid_name, "NULL"), "Error happens when trying to generate data interpolation for the field \"%s\" in the coupling from the component model \"%s\" (interface is \"%s\") to the component model \"%s\" (interface is \"%s\"): the field is scalar (not on a grid) on the target component model while is on a grid \"%s\" on the source component model. Please verify.", fields_name[i], src_comp_interfaces[0].first, src_comp_interfaces[0].second, dst_comp_full_name, dst_interface_name, dst_fields_info[i]->grid_name);
             continue;
+        }
+        if (words_are_the_same(src_fields_info[i]->grid_name, "NULL")) {
+			if (current_proc_id_dst_comp != -1)
+				EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, dst_comp_node->get_comp_id(), words_are_the_same(dst_fields_info[i]->grid_name, "NULL"), "Error happens when trying to generate data interpolation for the field \"%s\" in the coupling from the component model \"%s\" (interface is \"%s\") to the component model \"%s\" (interface is \"%s\"): the field is scalar (not on a grid) on the source component model while is on a grid \"%s\" on the target component model. Please verify.", fields_name[i], src_comp_interfaces[0].first, src_comp_interfaces[0].second, dst_comp_full_name, dst_interface_name, dst_fields_info[i]->grid_name);
+            continue;
+        }
         if (src_comp_node == dst_comp_node && words_are_the_same(src_fields_info[i]->grid_name, dst_fields_info[i]->grid_name))
             continue;
         Remapping_setting field_remapping_setting;    

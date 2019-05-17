@@ -19,7 +19,8 @@ Runtime_remap_function::Runtime_remap_function(Remap_grid_class *interchanged_gr
                                           Remap_operator_basis *runtime_remap_operator,
                                           Remap_grid_data_class *remap_field_data_src,
                                           Remap_grid_data_class *remap_field_data_dst,
-                                          Remap_weight_of_strategy_class *remap_weight_of_strategy)
+                                          Remap_weight_of_strategy_class *remap_weight_of_strategy,
+                                          const char *H2D_remapping_wgt_file)
 {
     int num_sized_grids_of_remapping_src, num_sized_grids_of_remapping_dst, num_leaf_grids;
     Remap_grid_class *sized_grids_of_remapping_src[256], *sized_grids_of_remapping_dst[256], *leaf_grids[256];
@@ -95,8 +96,14 @@ Runtime_remap_function::Runtime_remap_function(Remap_grid_class *interchanged_gr
         }
     }
 
-    runtime_remap_operator_grid_src = new Remap_operator_grid(remap_operator_runtime_grid_src, runtime_remap_operator, true, false);
-    runtime_remap_operator_grid_dst = new Remap_operator_grid(remap_operator_runtime_grid_dst, runtime_remap_operator, false, false);
+	if (runtime_remap_operator->get_src_grid()->get_is_sphere_grid() && H2D_remapping_wgt_file != NULL) {
+		runtime_remap_operator_grid_src = NULL;
+		runtime_remap_operator_grid_dst = NULL;
+	}
+	else {
+	    runtime_remap_operator_grid_src = new Remap_operator_grid(remap_operator_runtime_grid_src, runtime_remap_operator, true, false);
+    	runtime_remap_operator_grid_dst = new Remap_operator_grid(remap_operator_runtime_grid_dst, runtime_remap_operator, false, false);
+	}
 
     if (remap_field_data_dst != NULL && !remap_field_data_dst->have_data_content()) 
         remap_field_data_dst->grid_data_field->initialize_to_fill_value();
@@ -150,8 +157,11 @@ Runtime_remap_function::Runtime_remap_function(Remap_grid_class *interchanged_gr
 
 Runtime_remap_function::~Runtime_remap_function()
 {
-    delete runtime_remap_operator_grid_src;
-    delete runtime_remap_operator_grid_dst;
+	if (runtime_remap_operator_grid_src != NULL)
+	    delete runtime_remap_operator_grid_src;
+
+	if (runtime_remap_operator_grid_dst != NULL)
+	    delete runtime_remap_operator_grid_dst;
 
     if (last_mask_values_src)
         delete [] last_mask_values_src;
@@ -164,7 +174,7 @@ Runtime_remap_function::~Runtime_remap_function()
 }
 
 
-void Runtime_remap_function::calculate_static_remapping_weights(long current_remapping_time_iter, const char *H2D_remapping_wgt_file, int wgt_cal_comp_id)
+void Runtime_remap_function::calculate_static_remapping_weights(long current_remapping_time_iter, const char *H2D_remapping_wgt_file, int wgt_cal_comp_id, bool outer_mask)
 /*  Calculate static remapping weights and allocate entries for dynamic remapping weights
  */
 {
@@ -181,7 +191,8 @@ void Runtime_remap_function::calculate_static_remapping_weights(long current_rem
     if (runtime_remap_operator->get_src_grid()->has_grid_coord_label(COORD_LABEL_LEV)) {
         EXECUTION_REPORT(REPORT_ERROR, -1, runtime_remap_operator->get_src_grid()->get_num_dimensions() == 1, "Software error in Runtime_remap_function::calculate_static_remapping_weights: wrong dimension number of a remapping operator with vertical interpolation");
         if (runtime_remap_operator->get_src_grid()->get_a_leaf_grid_of_sigma_or_hybrid() || runtime_remap_operator->get_dst_grid()->get_a_leaf_grid_of_sigma_or_hybrid()) {
-            last_remap_weight_of_operator_instance = remap_weight_of_strategy->add_remap_weight_of_operator_instance(interchanged_grid_src, interchanged_grid_dst, current_remapping_time_iter, runtime_remap_operator);
+			//if (outer_mask)
+	            last_remap_weight_of_operator_instance = remap_weight_of_strategy->add_remap_weight_of_operator_instance(interchanged_grid_src, interchanged_grid_dst, current_remapping_time_iter, runtime_remap_operator);
             return;
         }
     }

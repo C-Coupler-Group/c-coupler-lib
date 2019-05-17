@@ -91,6 +91,10 @@ long H2D_remapping_wgt_file_info::get_grid_field_checksum_value(const char *fiel
 
 bool H2D_remapping_wgt_file_info::match_H2D_remapping_wgt(Original_grid_info *src_original_grid, Original_grid_info *dst_original_grid)
 {
+	bool check_result;
+	double *original_grid_center_lon, *original_grid_center_lat;
+
+	
     for (int i = 0; i < matched_grid_pair.size(); i ++)
         if (matched_grid_pair[i].first == src_original_grid && matched_grid_pair[i].second == dst_original_grid)
             return true;
@@ -116,27 +120,37 @@ bool H2D_remapping_wgt_file_info::match_H2D_remapping_wgt(Original_grid_info *sr
         return false;
     }
     read_weight_grid_data(dst_original_grid->get_comp_id(), "xc_a", DATA_TYPE_DOUBLE, (void**)(&src_center_lon), src_grid_size, true);
-    if (!are_two_coord_arrays_same(src_original_grid->get_center_lon_values(), this->src_center_lon, src_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->src_grid_size)) {
+	original_grid_center_lon = src_original_grid->get_center_lon_values();
+    check_result = are_two_coord_arrays_same(original_grid_center_lon, this->src_center_lon, src_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->src_grid_size);
+	delete [] original_grid_center_lon;
+    if (!check_result) {
         clean();
         return false;
     }
     read_weight_grid_data(dst_original_grid->get_comp_id(), "xc_b", DATA_TYPE_DOUBLE, (void**)(&dst_center_lon), dst_grid_size, true);
-    if (!are_two_coord_arrays_same(dst_original_grid->get_center_lon_values(), this->dst_center_lon, dst_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->dst_grid_size)) {
+	original_grid_center_lon = dst_original_grid->get_center_lon_values();
+    check_result = are_two_coord_arrays_same(original_grid_center_lon, this->dst_center_lon, dst_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->dst_grid_size);
+	delete [] original_grid_center_lon;
+    if (!check_result) {
         clean();
         return false;
     }
     read_weight_grid_data(dst_original_grid->get_comp_id(), "yc_a", DATA_TYPE_DOUBLE, (void**)(&src_center_lat), src_grid_size, true);
-    if (!are_two_coord_arrays_same(src_original_grid->get_center_lat_values(), this->src_center_lat, src_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->src_grid_size)) {
+	original_grid_center_lat = src_original_grid->get_center_lat_values();
+    check_result = are_two_coord_arrays_same(original_grid_center_lat, this->src_center_lat, src_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->src_grid_size);
+	delete [] original_grid_center_lat;
+    if (!check_result) {
         clean();
         return false;
     }
     read_weight_grid_data(dst_original_grid->get_comp_id(), "yc_b", DATA_TYPE_DOUBLE, (void**)(&dst_center_lat), dst_grid_size, true);
-    if (!are_two_coord_arrays_same(dst_original_grid->get_center_lat_values(), this->dst_center_lat, dst_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->dst_grid_size)) {
+	original_grid_center_lat = dst_original_grid->get_center_lat_values();
+    check_result = are_two_coord_arrays_same(original_grid_center_lat, this->dst_center_lat, dst_original_grid->get_H2D_sub_CoR_grid()->get_grid_size(), this->dst_grid_size);
+	delete [] original_grid_center_lat;
+    if (!check_result) {
         clean();
         return false;
     }
-    clean();
-
     read_weight_grid_data(dst_original_grid->get_comp_id(), "area_a", DATA_TYPE_DOUBLE, (void**)(&src_area), src_grid_size, false);
     read_weight_grid_data(dst_original_grid->get_comp_id(), "area_b", DATA_TYPE_DOUBLE, (void**)(&dst_area), dst_grid_size, false);
     read_remapping_weights(dst_original_grid->get_comp_id());

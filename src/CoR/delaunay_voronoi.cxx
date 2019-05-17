@@ -525,7 +525,7 @@ Delaunay_Voronoi::Delaunay_Voronoi(int num_points, double *lat_values, double *l
         cells[i].center = point;
         if (!mark[i])
             continue;
-        if (!redundant_cell_mark[i]) {
+        if (redundant_cell_mark == NULL || !redundant_cell_mark[i]) {
             point->current_triangle = root;
             root->remained_points_in_triangle.push_back(point);
         }

@@ -218,9 +218,9 @@ void Runtime_remapping_weights::generate_parallel_remapping_weights()
 
     decomp_original_grids[0] = src_original_grid->get_H2D_sub_CoR_grid();
     decomp_original_grids[1] = dst_original_grid->get_H2D_sub_CoR_grid();
-    remap_related_grids = sequential_remapping_weights->get_remap_related_grids(num_remap_related_grids);
-    remap_related_decomp_grids = new Remap_grid_class *[num_remap_related_grids];
 
+	remap_related_grids = sequential_remapping_weights->get_remap_related_grids(num_remap_related_grids);
+	remap_related_decomp_grids = new Remap_grid_class *[num_remap_related_grids];
     for (i = 0; i < num_remap_related_grids; i ++) {
         j = 0;
         remap_related_decomp_grids[i] = remap_related_grids[i];

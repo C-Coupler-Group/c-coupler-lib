@@ -1152,7 +1152,7 @@ void IO_netcdf::read_remap_weights(Remap_weight_of_strategy_class *remap_weights
                                                                      remap_weights->get_data_grid_dst(),
                                                                      0, remap_strategy->get_remap_operator(0),
                                                                      duplicated_remap_operator);
-        remap_weights->add_remap_weight_of_operator_instance(remap_operator_instance);
+        remap_weights->add_remap_weight_of_operator_instance(remap_operator_instance, remap_weights->get_data_grid_src(), remap_weights->get_data_grid_dst(), remap_strategy->get_remap_operator(0), remap_strategy->get_remap_operator(0)->get_src_grid(), remap_strategy->get_remap_operator(0)->get_dst_grid());
 
         if (read_weight_values) {
             delete [] tmp_indexes_src;

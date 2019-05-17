@@ -25,19 +25,13 @@ Original_grid_info::Original_grid_info(int comp_id, int grid_id, const char *gri
     this->checksum_H2D_mask = -1;
     this->mid_point_grid = NULL;
     this->interface_level_grid = NULL;
-    this->center_lon_values = NULL;
-    this->center_lat_values = NULL;
     this->grid_name = strdup(grid_name);
     comp_full_name = strdup(comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id, false, "Original_grid_info")->get_full_name());
     annotation_mgr->add_annotation(this->grid_id, "grid_registration", annotation);
     generate_remapping_grids();
 
     if (H2D_sub_CoR_grid != NULL) {
-        center_lon_values = new double [H2D_sub_CoR_grid->get_grid_size()];
-        center_lat_values = new double [H2D_sub_CoR_grid->get_grid_size()];
         char *grid_data = (char *) (new double [H2D_sub_CoR_grid->get_grid_size()]);
-        get_grid_data(-1, "lon", DATA_TYPE_DOUBLE, H2D_sub_CoR_grid->get_grid_size(), (char*) center_lon_values, "internal", "internal");
-        get_grid_data(-1, "lat", DATA_TYPE_DOUBLE, H2D_sub_CoR_grid->get_grid_size(), (char*) center_lat_values, "internal", "internal");
         get_grid_data(-1, "mask", DATA_TYPE_INT, H2D_sub_CoR_grid->get_grid_size(), grid_data, "internal", "internal");
         checksum_H2D_mask = calculate_checksum_of_array(grid_data, H2D_sub_CoR_grid->get_grid_size(), sizeof(int), NULL, NULL);
         delete [] grid_data;
@@ -80,10 +74,6 @@ Original_grid_info::Original_grid_info(int comp_id, int grid_id, const char *gri
 
 Original_grid_info::~Original_grid_info()
 {
-    if (center_lon_values != NULL) {
-        delete [] center_lon_values;
-        delete [] center_lat_values;
-    }
     delete [] grid_name;
     delete [] comp_full_name;
     if (bottom_field_name != NULL)
@@ -96,14 +86,7 @@ void Original_grid_info::reset_grid_data()
     if (original_CoR_grid != NULL) {
         delete original_CoR_grid;
         original_CoR_grid = NULL;
-    }
-
-    if (center_lon_values != NULL) {
-        delete [] center_lon_values;
-        delete [] center_lat_values;
-        center_lon_values = NULL;
-        center_lat_values = NULL;
-    }    
+    }  
 }
 
 
@@ -254,15 +237,47 @@ void Original_grid_info::set_grid_checksum(long checksum_mask)
 }
 
 
+double *Original_grid_info::get_center_lon_values()
+{
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, H2D_sub_CoR_grid != NULL, "Software error in Original_grid_info::get_center_lon_values");
+	double *center_lon_values = new double [H2D_sub_CoR_grid->get_grid_size()];
+	get_grid_data(-1, "lon", DATA_TYPE_DOUBLE, H2D_sub_CoR_grid->get_grid_size(), (char*) center_lon_values, "internal", "internal");
+	return center_lon_values;
+}
+
+
+double *Original_grid_info::get_center_lat_values()
+{
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, H2D_sub_CoR_grid != NULL, "Software error in Original_grid_info::get_center_lat_values");
+	double *center_lat_values = new double [H2D_sub_CoR_grid->get_grid_size()];
+	get_grid_data(-1, "lat", DATA_TYPE_DOUBLE, H2D_sub_CoR_grid->get_grid_size(), (char*) center_lat_values, "internal", "internal");
+	return center_lat_values;
+}
+
+
 bool Original_grid_info::is_H2D_grid_and_the_same_as_another_grid(Original_grid_info *another_grid)
 {
+	bool check_result;
+	double *this_center_lon, *this_center_lat, *another_center_lon, *another_center_lat;
+
+	
     if (!this->is_H2D_grid() || !another_grid->is_H2D_grid())
         return false;
-
-    if (!are_two_coord_arrays_same(this->center_lon_values, another_grid->center_lon_values, this->get_H2D_sub_CoR_grid()->get_grid_size(), another_grid->get_H2D_sub_CoR_grid()->get_grid_size()))
+	
+	this_center_lon = this->get_center_lon_values();
+	another_center_lon = another_grid->get_center_lon_values();
+	check_result = are_two_coord_arrays_same(this_center_lon, another_center_lon, this->get_H2D_sub_CoR_grid()->get_grid_size(), another_grid->get_H2D_sub_CoR_grid()->get_grid_size());
+	delete [] this_center_lon;
+	delete [] another_center_lon;	
+	if (!check_result)
         return false;
 
-    return are_two_coord_arrays_same(this->center_lat_values, another_grid->center_lat_values, this->get_H2D_sub_CoR_grid()->get_grid_size(), another_grid->get_H2D_sub_CoR_grid()->get_grid_size());
+	this_center_lat = this->get_center_lat_values();
+	another_center_lat = another_grid->get_center_lat_values();
+	check_result = are_two_coord_arrays_same(this_center_lat, another_center_lat, this->get_H2D_sub_CoR_grid()->get_grid_size(), another_grid->get_H2D_sub_CoR_grid()->get_grid_size());
+	delete [] this_center_lat;
+	delete [] another_center_lat;
+	return check_result;
 }
 
 

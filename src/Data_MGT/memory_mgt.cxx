@@ -241,7 +241,7 @@ void Field_mem_info::check_field_sum(const char *hint)
         else {
             total_sum = partial_sum;
             MPI_Bcast(&total_sum, 1, MPI_INT, 0, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(host_comp_id, "Field_mem_info::check_field_sum"));
-            EXECUTION_REPORT(REPORT_ERROR, host_comp_id, partial_sum == total_sum, "As an instance of the field \"%s\" is not on a horizontal grid, it should be the same but currently are not the same across all processes of the corresponding component model. Please check the model code related to the annotation \"%s\"", field_name, annotation_mgr->get_annotation(field_instance_id, "allocate field instance"));
+            EXECUTION_REPORT(REPORT_ERROR, host_comp_id, partial_sum == total_sum, "As an instance of the field \"%s\" is not on a horizontal grid, all its values should be the same but currently are not the same across all processes of the corresponding component model. Please check the model code related to the annotation \"%s\"", field_name, annotation_mgr->get_annotation(field_instance_id, "allocate field instance"));
         }
     }
 }
@@ -373,8 +373,10 @@ Field_mem_info *Memory_mgt::alloc_mem(const char *field_name, int decomp_id, int
         comp_id = original_grid_mgr->search_grid_info(comp_or_grid_id)->get_comp_id();
     }
     else {
-        EXECUTION_REPORT(REPORT_ERROR, -1, comp_comm_group_mgt_mgr->is_legal_local_comp_id(comp_or_grid_id,false), "Software error in Memory_mgt::alloc_mem: wrong component id");
-        comp_id = comp_or_grid_id;
+        EXECUTION_REPORT(REPORT_ERROR, -1, comp_comm_group_mgt_mgr->is_legal_local_comp_id(comp_or_grid_id,false) || original_grid_mgr->is_grid_id_legal(comp_or_grid_id), "Software error in Memory_mgt::alloc_mem: wrong component id or grid_id");
+		if (original_grid_mgr->is_grid_id_legal(comp_or_grid_id))
+			comp_id = original_grid_mgr->search_grid_info(comp_or_grid_id)->get_comp_id();
+		else comp_id = comp_or_grid_id;
     }
 
     
@@ -503,8 +505,9 @@ int Memory_mgt::register_external_field_instance(const char *field_name, void *d
                          field_name, annotation, annotation_mgr->get_annotation(existing_field_instance_instance->get_field_instance_id(), "allocate field instance"));
 
     new_field_instance = new Field_mem_info(field_name, decomp_id, comp_or_grid_id, buf_mark, unit, data_type, annotation, (buf_mark!=BUF_MARK_IO_FIELD_REG) && (usage_tag&REG_FIELD_TAG_CPL) == REG_FIELD_TAG_CPL);
-    EXECUTION_REPORT(REPORT_ERROR, comp_id, field_size == new_field_instance->get_size_of_field(), "Error happens when calling the API \"CCPL_register_field_instance\" to register a field instance of \"%s\": the size of the model data buffer (currently is %d) is different from the size determined by the parallel decomposition and grid (currently is %ld). Please check the model code with the annotation \"%s\"",
-                     field_name, field_size, new_field_instance->get_size_of_field(), annotation);
+    if (new_field_instance->get_size_of_field() > 0)
+        EXECUTION_REPORT(REPORT_ERROR, comp_id, field_size == new_field_instance->get_size_of_field(), "Error happens when calling the API \"CCPL_register_field_instance\" to register a field instance of \"%s\": the size of the model data buffer (currently is %d) is different from the size determined by the parallel decomposition and grid (currently is %ld). Please check the model code with the annotation \"%s\"",
+    	                 field_name, field_size, new_field_instance->get_size_of_field(), annotation);
     new_field_instance->set_field_instance_id(TYPE_FIELD_INST_ID_PREFIX|fields_mem.size(), annotation);
     new_field_instance->reset_mem_buf(data_buffer, true, usage_tag);
     EXECUTION_REPORT(REPORT_ERROR, comp_id, usage_tag >= 0 && usage_tag <= 3, "Error happens when calling the API \"CCPL_register_field_instance\" to register a field instance of \"%s\": the value of the parameter \"usage_tag\" (%d) is wrong. The right value should be between 1 and 3. Please check the model code with the annotation \"%s\"", field_name, usage_tag, annotation);

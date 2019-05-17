@@ -683,7 +683,10 @@ Comp_comm_group_mgt_mgr::Comp_comm_group_mgt_mgr(const char *executable_name)
 
     EXECUTION_REPORT(REPORT_ERROR,-1, MPI_Comm_rank(MPI_COMM_WORLD, &current_proc_global_id) == MPI_SUCCESS);
     EXECUTION_REPORT(REPORT_ERROR,-1, MPI_Comm_size(MPI_COMM_WORLD, &num_total_global_procs) == MPI_SUCCESS);    
-
+	if (current_proc_global_id == 0) {
+		sprintf(temp_string, "%s/CCPL_dir/config", root_working_dir);
+		EXECUTION_REPORT(REPORT_ERROR, -1, does_file_exist(temp_string), "Fail to initialize C-Coupler: the directory (\"%s\") for configuration files of C-Coupler does not exit.", temp_string);
+	}
     sprintf(temp_string, "%s/CCPL_dir/run", root_working_dir);
     create_directory(temp_string, MPI_COMM_WORLD, current_proc_global_id == 0, false);
     sprintf(temp_string, "%s/CCPL_dir/run/CCPL_logs", root_working_dir);

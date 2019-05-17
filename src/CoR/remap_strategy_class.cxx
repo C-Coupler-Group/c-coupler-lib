@@ -123,19 +123,15 @@ void Remap_strategy_class::calculate_remapping_weights(Remap_weight_of_strategy_
     Remap_grid_class *current_remap_src_data_grid_interchanged;
     int num_leaf_grids, num_sized_grids;
     Remap_grid_class *leaf_grids[256], *sized_grids[256];
-    Remap_grid_data_class *field_data_src, *field_data_dst;
-    Remap_grid_data_class *interchanged_field_data_src, *remap_operator_dst_field_data = NULL;
     Remap_grid_class *runtime_remap_grid_src, *runtime_remap_grid_dst;
     Remap_grid_data_class *runtime_mask_src, *runtime_mask_dst;
     Remap_grid_class *runtime_mask_sub_grids_src[256], *runtime_mask_sub_grids_dst[256];
+	bool *outer_mask;
     int num_runtime_mask_sub_grids_src, num_runtime_mask_sub_grids_dst;
     long runtime_remap_times_iter;
     double last_time, current_time;
 
 
-
-    field_data_src = NULL;
-    field_data_dst = NULL;
     remap_src_data_grid = remap_weight_of_strategy->get_data_grid_src();
     remap_dst_data_grid = remap_weight_of_strategy->get_data_grid_dst();
 
@@ -167,19 +163,6 @@ void Remap_strategy_class::calculate_remapping_weights(Remap_weight_of_strategy_
         current_remap_dst_data_grid->interchange_grid_fields_for_remapping(current_remap_dst_data_grid,
                                                                            remap_operators[i]->get_dst_grid(),
                                                                            runtime_mask_dst);
-        if (field_data_src != NULL) {
-            field_data_src->interchange_grid_data(current_remap_src_data_grid_interchanged);
-            if (i == remap_operators.size()-1) {
-                remap_operator_dst_field_data = field_data_dst;
-                if (field_data_dst->have_data_content())
-                    field_data_dst->interchange_grid_data(current_remap_dst_data_grid);
-                else {
-                    current_remap_dst_data_grid->get_sized_sub_grids(&num_sized_grids, sized_grids);
-                    field_data_dst->reset_sized_grids(num_sized_grids, sized_grids);
-                }
-            }
-            else remap_operator_dst_field_data = field_data_src->duplicate_grid_data_field(current_remap_dst_data_grid, 1, false, false);
-        }
         runtime_remap_grid_src = current_remap_src_data_grid_interchanged->generate_remap_operator_runtime_grid(remap_operators[i]->get_src_grid(), 
                                                                                                                 remap_operators[i], 
                                                                                                                 runtime_mask_src);
@@ -191,12 +174,20 @@ void Remap_strategy_class::calculate_remapping_weights(Remap_weight_of_strategy_
                                                                     runtime_remap_grid_src,
                                                                     runtime_remap_grid_dst,
                                                                     remap_operators[i],
-                                                                    field_data_src,
-                                                                    remap_operator_dst_field_data,
-                                                                    remap_weight_of_strategy);
+                                                                    NULL,
+                                                                    NULL,
+                                                                    remap_weight_of_strategy,
+                                                                    H2D_remapping_wgt_file);
         if (execution_phase_number == 1) {
+			outer_mask = NULL;
+			if (runtime_remap_grid_src->get_grid_mask_field() == NULL && (runtime_mask_src != NULL || runtime_mask_dst != NULL)) {
+				EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, runtime_mask_src != NULL && runtime_mask_dst != NULL, "Software error in Remap_strategy_class::calculate_remapping_weights");
+				EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, runtime_mask_src->get_coord_value_grid() == runtime_mask_dst->get_coord_value_grid(), "Software error in Remap_strategy_class::calculate_remapping_weights");				
+				EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, runtime_mask_src->get_grid_data_field()->required_data_size == current_remap_src_data_grid_interchanged->get_grid_size()/runtime_remap_grid_src->get_grid_size(), "Software error in Remap_strategy_class::calculate_remapping_weights");
+				outer_mask = (bool*) runtime_mask_src->get_grid_data_field()->data_buf;
+			}
             for (runtime_remap_times_iter = 0; runtime_remap_times_iter < current_remap_src_data_grid_interchanged->get_grid_size()/runtime_remap_grid_src->get_grid_size(); runtime_remap_times_iter ++) {
-                current_runtime_remap_function->calculate_static_remapping_weights(runtime_remap_times_iter, H2D_remapping_wgt_file, wgt_cal_wgt_id);
+                current_runtime_remap_function->calculate_static_remapping_weights(runtime_remap_times_iter, H2D_remapping_wgt_file, wgt_cal_wgt_id, outer_mask == NULL? true:outer_mask[runtime_remap_times_iter]);
             }
         }
         if (remap_operators[i]->get_src_grid()->has_grid_coord_label(COORD_LABEL_LEV))
@@ -205,16 +196,7 @@ void Remap_strategy_class::calculate_remapping_weights(Remap_weight_of_strategy_
 
         delete runtime_remap_grid_src;
         delete runtime_remap_grid_dst;
-        if (field_data_src != NULL)
-            delete current_remap_src_data_grid_interchanged;
         delete current_runtime_remap_function;
-        if (i > 0 && field_data_src != NULL) {
-            delete field_data_src;
-            delete current_remap_src_data_grid;
-        }
-
-        if (field_data_src != NULL)
-            field_data_src = remap_operator_dst_field_data;
         current_remap_src_data_grid = current_remap_dst_data_grid;
 
         if (runtime_mask_src != NULL)
@@ -222,11 +204,6 @@ void Remap_strategy_class::calculate_remapping_weights(Remap_weight_of_strategy_
 
         if (runtime_mask_dst != NULL)
             delete runtime_mask_dst;
-    }
-
-    if (field_data_src != NULL) {
-        field_data_dst->get_grid_data_field()->read_data_size = field_data_dst->get_grid_data_field()->required_data_size;
-        delete current_remap_src_data_grid;
     }
 
     EXECUTION_REPORT(REPORT_ERROR, -1, j+1 == remap_weight_of_strategy->get_num_field_data_grids_in_remapping_process(), "C-Coupler error in calculate_remapping_weights\n");

@@ -41,8 +41,6 @@ class Original_grid_info
         int bottom_field_variation_type;   // 0: static; 1: dynamic; 2: external
         Original_grid_info *mid_point_grid;
         Original_grid_info *interface_level_grid;
-        double *center_lon_values;
-        double *center_lat_values;
         long checksum_H2D_mask;
 
         void generate_remapping_grids();
@@ -75,8 +73,8 @@ class Original_grid_info
         void set_mid_point_grid(Original_grid_info*);
         long get_checksum_H2D_mask() { return checksum_H2D_mask; }
         bool is_H2D_grid_and_the_same_as_another_grid(Original_grid_info *);
-        double *get_center_lon_values() { return center_lon_values; }
-        double *get_center_lat_values() { return center_lat_values; }
+        double *get_center_lon_values();
+        double *get_center_lat_values();
         void reset_grid_data();
         const char *get_comp_full_name() { return comp_full_name; }
 };
