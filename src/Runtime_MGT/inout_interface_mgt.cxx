@@ -190,11 +190,11 @@ Connection_coupling_procedure::Connection_coupling_procedure(Inout_interface *in
                 runtime_remap_algorithms[i] = new Runtime_remap_algorithm(coupling_connection->dst_fields_info[i]->runtime_remapping_weights, fields_mem_transfer[i], fields_mem_remapped[i], coupling_connection->connection_id);
             }
             if (!words_are_the_same(transfer_data_type, coupling_connection->dst_fields_info[i]->data_type)) {
-                EXECUTION_REPORT_LOG(REPORT_LOG, inout_interface->get_comp_id(), true, 
-                                 "for field %s, add data type transformation at dst from %s to %s\n", 
-                                 fields_mem_registered[i]->get_field_name(), transfer_data_type, coupling_connection->dst_fields_info[i]->data_type);
                 fields_mem_datatype_transformed[i] = memory_manager->alloc_mem(fields_mem_registered[i], BUF_MARK_DATATYPE_TRANS, coupling_connection->connection_id, coupling_connection->dst_fields_info[i]->data_type, 
                                                                                inout_interface->get_interface_source() == INTERFACE_SOURCE_REGISTER && i < coupling_connection->fields_name.size());
+                EXECUTION_REPORT_LOG(REPORT_LOG, inout_interface->get_comp_id(), true, 
+                                 "for field %s, add data type transformation at dst from %s to %s: %x %x %x\n", 
+                                 fields_mem_registered[i]->get_field_name(), transfer_data_type, coupling_connection->dst_fields_info[i]->data_type, fields_mem_datatype_transformed[i]->get_grid_id(), fields_mem_registered[i]->get_grid_id(), fields_mem_transfer[i]->get_grid_id());
                 if (fields_mem_remapped[i] == NULL)
                     runtime_datatype_transform_algorithms[i] = new Runtime_datatype_transformer(fields_mem_transfer[i], fields_mem_datatype_transformed[i]);
                 else runtime_datatype_transform_algorithms[i] = new Runtime_datatype_transformer(fields_mem_remapped[i], fields_mem_datatype_transformed[i]);

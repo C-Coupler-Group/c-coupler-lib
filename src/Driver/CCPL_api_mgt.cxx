@@ -102,6 +102,9 @@ void get_API_hint(int comp_id, int API_id, char *API_label)
         case API_ID_GRID_MGT_SET_GRID_DATA:
             sprintf(API_label, "CCPL_set_grid_data");
             break;
+        case API_ID_GRID_MGT_SET_3D_GRID_3D_VERT_FLD:
+            sprintf(API_label, "CCPL_set_3D_grid_3D_vertical_coord_field");
+            break;
         case API_ID_GRID_MGT_SET_3D_GRID_DYN_BOT_FLD:
             sprintf(API_label, "CCPL_set_3D_grid_dynamic_surface_field");
             break;
@@ -120,6 +123,9 @@ void get_API_hint(int comp_id, int API_id, char *API_label)
         case API_ID_GRID_MGT_REG_MID_POINT_GRID:
             sprintf(API_label, "CCPL_register_mid_point_grid");
             break;
+        case API_ID_GRID_MGT_REG_V1D_GRID_NO_DATA:
+            sprintf(API_label, "CCPL_register_V1D_grid_without_data");
+            break; 
         case API_ID_GRID_MGT_REG_V1D_Z_GRID_VIA_MODEL:
             sprintf(API_label, "CCPL_register_V1D_Z_grid_via_model_data");
             break;    

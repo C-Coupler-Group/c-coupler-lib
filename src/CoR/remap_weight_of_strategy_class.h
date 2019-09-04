@@ -125,7 +125,8 @@ class Remap_weight_of_strategy_class
         void do_remap(int, Remap_grid_data_class*, Remap_grid_data_class*);
         void add_remap_weight_of_operator_instance(Remap_weight_of_operator_instance_class *, Remap_grid_class *, Remap_grid_class *, Remap_operator_basis *, Remap_grid_class *, Remap_grid_class *);
         void calculate_src_decomp(Remap_grid_class*, Remap_grid_class*, long*, const long*);
-		Remap_grid_class **get_remap_related_grids(int&);
+		void get_remap_related_grids(std::vector<std::pair<Remap_grid_class *, bool> > &);		
+		void add_remap_related_grid(std::vector<std::pair<Remap_grid_class *, bool> > &, Remap_grid_class *, bool);
         Remap_weight_of_strategy_class *generate_parallel_remap_weights(Remap_grid_class**, Remap_grid_class**, int **);
         const char *get_object_name() { return object_name; }
         void renew_object_name(const char*);

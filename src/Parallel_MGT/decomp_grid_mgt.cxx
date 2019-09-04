@@ -77,6 +77,8 @@ Decomp_grid_info::Decomp_grid_info(int decomp_id, Remap_grid_class *original_gri
         this->decomp_grid->set_original_grid(original_grid);
         if (original_grid->has_grid_coord_label(COORD_LABEL_LEV))
             this->decomp_grid->generate_3D_grid_decomp_sigma_values(original_grid, decomp_2D_grid, decomp->get_local_cell_global_indx(), decomp->get_num_local_cells());
+		if (original_grid->does_use_V3D_level_coord())
+			this->decomp_grid->set_using_V3D_level_coord();
     }
 }
 
@@ -104,9 +106,29 @@ Decomp_grid_info *Decomp_grid_mgt::search_decomp_grid_info(int decomp_id, Remap_
 }
 
 
+void Decomp_grid_mgt::set_decomp_grids_using_3D_level_coord(Remap_grid_class *original_V3D_grid)
+{
+	for (int i = 0; i < decomp_grids_info.size(); i ++)
+		if (decomp_grids_info[i]->get_original_grid() == original_V3D_grid)
+			decomp_grids_info[i]->get_decomp_grid()->set_using_V3D_level_coord();
+}
+
+
 Decomp_grid_mgt::~Decomp_grid_mgt()
 {
     for (int i = 0; i < decomp_grids_info.size(); i ++)
         delete decomp_grids_info[i];
 }
+
+
+Remap_grid_class *Decomp_grid_mgt::search_decomp_grid_original_grid(int decomp_id, Remap_grid_class *decomp_grid)
+{
+	for (int i = 0; i < decomp_grids_info.size(); i ++)
+        if (decomp_grids_info[i]->get_decomp_id() == decomp_id && decomp_grids_info[i]->get_decomp_grid() == decomp_grid)
+            return decomp_grids_info[i]->get_original_grid();	
+		
+	EXECUTION_REPORT(REPORT_ERROR, -1, false, "Software error in Decomp_grid_mgt::search_decomp_grid_original_grid");
+	return NULL;
+}
+
 

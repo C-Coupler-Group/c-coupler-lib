@@ -38,11 +38,6 @@ Runtime_remap_algorithm::Runtime_remap_algorithm(Runtime_remapping_weights *runt
 
 Runtime_remap_algorithm::~Runtime_remap_algorithm()
 {
-    for (int i = 0; i < operations_for_dynamic_sigma_grid.size(); i ++) {
-        if (operations_for_dynamic_sigma_grid[i]->runtime_remap_algorithm != NULL)
-            delete operations_for_dynamic_sigma_grid[i]->runtime_remap_algorithm;
-        delete operations_for_dynamic_sigma_grid[i];
-    }
 }
 
 
@@ -54,8 +49,9 @@ void Runtime_remap_algorithm::do_remap(bool is_algorithm_in_kernel_stage)
     double *temp_src_values;
     Remap_grid_class *decomp_grid, *original_grid;
     Decomp_info *decomp;
-    bool grid_dynamic_surface_field_updated;
 
+
+	EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "Data interpolation for field \"%s\"", specified_src_field_instance->get_field_name());
 
     if (runtime_remapping_weights->get_parallel_remapping_weights() == NULL)
         return;
@@ -65,7 +61,8 @@ void Runtime_remap_algorithm::do_remap(bool is_algorithm_in_kernel_stage)
     if (transform_data_type)
         for (int i = 0; i < specified_src_field_instance->get_size_of_field(); i ++)
             ((double*)true_src_field_instance->get_data_buf())[i] = ((float*)specified_src_field_instance->get_data_buf())[i];
-    runtime_remapping_weights->renew_dynamic_V1D_remapping_weights();
+	if (!words_are_the_same(specified_src_field_instance->get_field_name(),V3D_GRID_3D_LEVEL_FIELD_NAME))
+	    runtime_remapping_weights->renew_dynamic_V1D_remapping_weights();
     comp_comm_group_mgt_mgr->get_global_node_of_local_comp(runtime_remapping_weights->get_dst_original_grid()->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, "remapping cal");
     runtime_remapping_weights->get_parallel_remapping_weights()->do_remap(runtime_remapping_weights->get_dst_original_grid()->get_comp_id(), true_src_field_instance->get_field_data(), true_dst_field_instance->get_field_data());
     comp_comm_group_mgt_mgr->get_global_node_of_local_comp(runtime_remapping_weights->get_dst_original_grid()->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, "remapping cal");

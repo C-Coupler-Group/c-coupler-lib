@@ -97,10 +97,9 @@ void Remap_strategy_class::check_field_data_grid_center_values_for_remapping(Rem
         }
     if (is_remap_operator_regriding)
         for (i = 0; i < num_leaf_grids_remap_operator; i ++) {
-            if (leaf_grids_remap_operator[i]->has_grid_coord_label(COORD_LABEL_LEV) && field_data_grid->is_sigma_grid()) {
-                EXECUTION_REPORT(REPORT_ERROR, -1, field_data_grid->get_sigma_grid_surface_value_field() != NULL, "C-Coupler error in check_field_data_grid_center_values_for_remapping");
-            }
-            else {    
+			if (leaf_grids_remap_operator[i]->does_use_V3D_level_coord()) {
+			}
+            else if (!(leaf_grids_remap_operator[i]->has_grid_coord_label(COORD_LABEL_LEV) && field_data_grid->is_sigma_grid())) {    
                 EXECUTION_REPORT(REPORT_ERROR, -1, leaf_grids_remap_operator[i]->get_super_grid_of_setting_coord_values() != NULL,
                              "The coordinate values of \"%s\" defined in grid \"%s\" must be set for regriding\n",
                              leaf_grids_remap_operator[i]->get_coord_label(),

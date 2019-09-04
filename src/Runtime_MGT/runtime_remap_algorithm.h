@@ -21,20 +21,9 @@ class Runtime_transfer_algorithm;
 class Runtime_remap_algorithm;
 
 
-struct Operation_for_dynamic_sigma_grid
-{
-    Field_mem_info *surface_field_of_sigma_grid_src;
-    Field_mem_info *surface_field_of_sigma_grid_dst;
-    Remap_grid_class *current_3D_sigma_grid_src;
-    Remap_grid_class *current_3D_sigma_grid_dst;
-    Runtime_remap_algorithm *runtime_remap_algorithm;
-};
-
-
 class Runtime_remap_algorithm
 {
     private:       
-        std::vector<Operation_for_dynamic_sigma_grid*> operations_for_dynamic_sigma_grid;
         int comp_id;
         Field_mem_info *specified_src_field_instance;
         Field_mem_info *specified_dst_field_instance;

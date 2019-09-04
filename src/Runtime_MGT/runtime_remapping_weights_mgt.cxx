@@ -97,6 +97,10 @@ Runtime_remapping_weights::Runtime_remapping_weights(const char *src_comp_full_n
             remap_operator_V1D->set_parameter(parameter_name, parameter_value);
         }
         remap_operators[num_remap_operators++] = remap_operator_V1D;
+		if (!src_original_grid->get_original_CoR_grid()->is_sigma_grid() && !src_original_grid->get_original_CoR_grid()->does_use_V3D_level_coord())
+			EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, dst_original_grid->get_comp_id(), src_original_grid->get_V1D_sub_CoR_grid()->get_super_grid_of_setting_coord_values() != NULL, "Error happens when generating remapping weights from the grid \"%s\" to \"%s\": the coordinate values of the vertical sub grid \"%s\" of the source grid has not been specified. Please verify.", src_original_grid->get_grid_name(), dst_original_grid->get_grid_name(), src_original_grid->get_V1D_sub_CoR_grid()->get_grid_name());
+		if (!dst_original_grid->get_original_CoR_grid()->is_sigma_grid() && !dst_original_grid->get_original_CoR_grid()->does_use_V3D_level_coord())
+			EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, dst_original_grid->get_comp_id(), dst_original_grid->get_V1D_sub_CoR_grid()->get_super_grid_of_setting_coord_values() != NULL, "Error happens when generating remapping weights from the grid \"%s\" to \"%s\": the coordinate values of the vertical sub grid \"%s\" of the target grid has not been specified. Please verify.", src_original_grid->get_grid_name(), dst_original_grid->get_grid_name(), dst_original_grid->get_V1D_sub_CoR_grid()->get_grid_name());
     }
     if (src_original_grid->get_T1D_sub_CoR_grid() != NULL) {
         remap_grids[0] = src_original_grid->get_T1D_sub_CoR_grid();
@@ -112,7 +116,6 @@ Runtime_remapping_weights::Runtime_remapping_weights(const char *src_comp_full_n
         }
         remap_operators[num_remap_operators++] = remap_operator_T1D;
     }
-
     execution_phase_number = 1;
     EXECUTION_REPORT(REPORT_ERROR, -1, num_remap_operators > 0, "Software error in Runtime_remapping_weights::Runtime_remapping_weights: no remapping operator");
     remapping_strategy = new Remap_strategy_class("runtime_remapping_strategy", num_remap_operators, remap_operators);
@@ -181,8 +184,17 @@ Runtime_remapping_weights::~Runtime_remapping_weights()
 
 Field_mem_info *Runtime_remapping_weights::allocate_intermediate_V3D_grid_bottom_field()
 {
-    if (intermediate_V3D_grid_bottom_field == NULL)
-        intermediate_V3D_grid_bottom_field = memory_manager->alloc_mem("V3D_grid_bottom_field", dst_decomp_info->get_decomp_id(), decomps_info_mgr->get_decomp_info(dst_decomp_info->get_decomp_id())->get_grid_id(), -dst_original_grid->get_grid_id(), DATA_TYPE_DOUBLE, "unitless", "Runtime_remapping_weights::allocate_intermediate_V3D_grid_bottom_field", false);
+    if (intermediate_V3D_grid_bottom_field == NULL) {	
+		if (src_original_grid->get_original_CoR_grid()->is_sigma_grid())
+	        intermediate_V3D_grid_bottom_field = memory_manager->alloc_mem("V3D_grid_bottom_field", dst_decomp_info->get_decomp_id(), decomps_info_mgr->get_decomp_info(dst_decomp_info->get_decomp_id())->get_grid_id(), -dst_original_grid->get_grid_id(), DATA_TYPE_DOUBLE, "unitless", "Runtime_remapping_weights::allocate_intermediate_V3D_grid_bottom_field", false);
+		else if (src_original_grid->get_original_CoR_grid()->does_use_V3D_level_coord()) {
+			Remap_grid_class *full_original_grid = decomp_grids_mgr->search_decomp_grid_original_grid(dst_decomp_info->get_decomp_id(), get_parallel_remapping_weights()->get_dynamic_V1D_remap_weight_of_operator()->get_field_data_grid_src());
+			EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, full_original_grid->does_use_V3D_level_coord(), "Software error in Runtime_remapping_weights::allocate_intermediate_V3D_grid_bottom_field");
+			int grid_id = original_grid_mgr->search_or_register_internal_grid(dst_decomp_info->get_comp_id(), full_original_grid)->get_grid_id();
+			intermediate_V3D_grid_bottom_field = memory_manager->alloc_mem(V3D_GRID_3D_LEVEL_FIELD_NAME, dst_decomp_info->get_decomp_id(), grid_id, -grid_id, DATA_TYPE_DOUBLE, "unitless", "Runtime_remapping_weights::allocate_intermediate_V3D_grid_bottom_field", false);
+		}
+		else EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, true, "Software error in Runtime_remapping_weights::allocate_intermediate_V3D_grid_bottom_field");
+    }
     return intermediate_V3D_grid_bottom_field;
 }
 
@@ -197,9 +209,9 @@ bool Runtime_remapping_weights::match_requirements(const char *src_comp_full_nam
 
 void Runtime_remapping_weights::generate_parallel_remapping_weights()
 {
-    Remap_grid_class **remap_related_grids, **remap_related_decomp_grids;
+    Remap_grid_class **remap_related_decomp_grids;
+	std::vector<std::pair<Remap_grid_class *, bool> > remap_related_grids;
     Remap_grid_class *decomp_original_grids[256];
-    int num_remap_related_grids;
     int *global_cells_local_indexes_in_decomps[256];
     int i, j;
 
@@ -219,20 +231,21 @@ void Runtime_remapping_weights::generate_parallel_remapping_weights()
     decomp_original_grids[0] = src_original_grid->get_H2D_sub_CoR_grid();
     decomp_original_grids[1] = dst_original_grid->get_H2D_sub_CoR_grid();
 
-	remap_related_grids = sequential_remapping_weights->get_remap_related_grids(num_remap_related_grids);
-	remap_related_decomp_grids = new Remap_grid_class *[num_remap_related_grids];
-    for (i = 0; i < num_remap_related_grids; i ++) {
-        j = 0;
-        remap_related_decomp_grids[i] = remap_related_grids[i];
-        if (decomp_original_grids[0]->is_subset_of_grid(remap_related_grids[i])) {
-            remap_related_decomp_grids[i] = decomp_grids_mgr->search_decomp_grid_info(src_decomp_info->get_decomp_id(), remap_related_grids[i], false)->get_decomp_grid();
-            j ++;
-        }
-        if (decomp_original_grids[1]->is_subset_of_grid(remap_related_grids[i])) {
-            remap_related_decomp_grids[i] = decomp_grids_mgr->search_decomp_grid_info(dst_decomp_info->get_decomp_id(), remap_related_grids[i], false)->get_decomp_grid();
-            j ++;
-        }
-        EXECUTION_REPORT(REPORT_ERROR, -1, j <= 1, "Software error in Runtime_remapping_weights::generate_parallel_remapping_weights: wrong j");
+	sequential_remapping_weights->get_remap_related_grids(remap_related_grids);
+	remap_related_decomp_grids = new Remap_grid_class *[remap_related_grids.size()];
+    for (i = 0; i < remap_related_grids.size(); i ++) {
+        remap_related_decomp_grids[i] = remap_related_grids[i].first;
+		if (!(remap_related_decomp_grids[i]->has_grid_coord_label(COORD_LABEL_LON) || remap_related_decomp_grids[i]->has_grid_coord_label(COORD_LABEL_LAT)))
+			continue;
+		if (!remap_related_grids[i].second) {
+				EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, decomp_original_grids[0]->is_subset_of_grid(remap_related_grids[i].first),  "Software error in Runtime_remapping_weights::generate_parallel_remapping_weights");
+            remap_related_decomp_grids[i] = decomp_grids_mgr->search_decomp_grid_info(src_decomp_info->get_decomp_id(), remap_related_grids[i].first, false)->get_decomp_grid();
+		}
+		else {
+			if (remap_related_decomp_grids[i]->has_grid_coord_label(COORD_LABEL_LON) || remap_related_decomp_grids[i]->has_grid_coord_label(COORD_LABEL_LAT))
+				EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, decomp_original_grids[1]->is_subset_of_grid(remap_related_grids[i].first), "Software error in Runtime_remapping_weights::generate_parallel_remapping_weights");
+            remap_related_decomp_grids[i] = decomp_grids_mgr->search_decomp_grid_info(dst_decomp_info->get_decomp_id(), remap_related_grids[i].first, false)->get_decomp_grid();
+		}
     }
 
     global_cells_local_indexes_in_decomps[0] = new int [decomp_original_grids[0]->get_grid_size()];
@@ -250,20 +263,25 @@ void Runtime_remapping_weights::generate_parallel_remapping_weights()
     parallel_remapping_weights = sequential_remapping_weights->generate_parallel_remap_weights(remap_related_decomp_grids, decomp_original_grids, global_cells_local_indexes_in_decomps);
     dynamic_V1D_remap_weight_of_operator = parallel_remapping_weights->get_dynamic_V1D_remap_weight_of_operator();
     if (dynamic_V1D_remap_weight_of_operator != NULL) {
-        runtime_V1D_remap_grid_src = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->generate_remap_operator_runtime_grid(dynamic_V1D_remap_weight_of_operator->get_original_remap_operator()->get_src_grid(),    dynamic_V1D_remap_weight_of_operator->get_original_remap_operator(), NULL);
-        runtime_V1D_remap_grid_dst = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->generate_remap_operator_runtime_grid(dynamic_V1D_remap_weight_of_operator->get_original_remap_operator()->get_dst_grid(),    dynamic_V1D_remap_weight_of_operator->get_original_remap_operator(), NULL);
+        runtime_V1D_remap_grid_src = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->generate_remap_operator_runtime_grid(dynamic_V1D_remap_weight_of_operator->get_original_remap_operator()->get_src_grid(), dynamic_V1D_remap_weight_of_operator->get_original_remap_operator(), NULL);
+        runtime_V1D_remap_grid_dst = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->generate_remap_operator_runtime_grid(dynamic_V1D_remap_weight_of_operator->get_original_remap_operator()->get_dst_grid(), dynamic_V1D_remap_weight_of_operator->get_original_remap_operator(), NULL);
     }
 
     if (dynamic_V1D_remap_weight_of_operator != NULL && get_dst_original_grid()->get_bottom_field_variation_type() != BOTTOM_FIELD_VARIATION_EXTERNAL && get_dst_original_grid()->get_bottom_field_variation_type() != BOTTOM_FIELD_VARIATION_UNSET) {
-        if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->get_sigma_grid_dynamic_surface_value_field() != NULL)
-            EXECUTION_REPORT(REPORT_ERROR, -1, dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->get_sigma_grid_dynamic_surface_value_field() == memory_manager->get_field_instance(get_dst_original_grid()->get_bottom_field_id())->get_field_data(), "Software error in Coupling_connection::add_bottom_field_coupling_info: the surface field of the same grid has been set to different data fields");
-        else dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->set_sigma_grid_dynamic_surface_value_field(memory_manager->get_field_instance(get_dst_original_grid()->get_bottom_field_id())->get_field_data());
+        if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->get_level_V3D_coord_dynamic_trigger_field() != NULL)
+            EXECUTION_REPORT(REPORT_ERROR, -1, dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->get_level_V3D_coord_dynamic_trigger_field() == memory_manager->get_field_instance(get_dst_original_grid()->get_bottom_field_id())->get_field_data(), "Software error in Coupling_connection::add_bottom_field_coupling_info: the surface field of the same grid has been set to different data fields");
+        else dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->set_level_V3D_coord_dynamic_trigger_field(memory_manager->get_field_instance(get_dst_original_grid()->get_bottom_field_id())->get_field_data());
     }
+	if (dynamic_V1D_remap_weight_of_operator != NULL && get_dst_original_grid()->get_V3D_lev_field_variation_type() != BOTTOM_FIELD_VARIATION_UNSET) {
+        if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->get_level_V3D_coord_dynamic_trigger_field() != NULL)
+            EXECUTION_REPORT(REPORT_ERROR, -1, dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->get_level_V3D_coord_dynamic_trigger_field() == memory_manager->get_field_instance(get_dst_original_grid()->get_V3D_lev_field_id())->get_field_data(), "Software error in Coupling_connection::add_bottom_field_coupling_info: the V3D field of the same grid has been set to different data fields");
+        else dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->set_level_V3D_coord_dynamic_trigger_field(memory_manager->get_field_instance(get_dst_original_grid()->get_V3D_lev_field_id())->get_field_data());
+	}
     
     EXECUTION_REPORT_LOG(REPORT_LOG, dst_decomp_info->get_comp_id(), true, "after generating parallel remap weights for runtime_remap_algorithm");
 
     delete [] remap_related_decomp_grids;
-    delete [] remap_related_grids;
+    remap_related_grids.clear();
     delete [] global_cells_local_indexes_in_decomps[0];
     delete [] global_cells_local_indexes_in_decomps[1];
 }
@@ -293,24 +311,32 @@ void Runtime_remapping_weights::renew_dynamic_V1D_remapping_weights()
     if (dynamic_V1D_remap_weight_of_operator == NULL)
         return;
 
-    if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->is_sigma_grid()) {
-        src_bottom_value_specified = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->is_sigma_grid_surface_value_field_specified();
-        src_bottom_value_updated = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->is_sigma_grid_surface_value_field_updated();
+    if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->is_sigma_grid() || dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->does_use_V3D_level_coord()) {
+        src_bottom_value_specified = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->is_level_V3D_coord_trigger_field_specified();
+        src_bottom_value_updated = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->is_level_V3D_coord_trigger_field_updated();
         if (src_original_grid->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_STATIC)
-            EXECUTION_REPORT(REPORT_ERROR, src_original_grid->get_comp_id(), !src_bottom_value_updated || !src_bottom_value_specified, "the surface field of the 3-D grid \"%s\" (registered in the component \"%s\") is updated while the surface field has been specified as a static one. Please verify", src_original_grid->get_grid_name(), src_original_grid->get_comp_full_name());
+            EXECUTION_REPORT(REPORT_WARNING, src_original_grid->get_comp_id(), !src_bottom_value_updated || !src_bottom_value_specified, "the surface field of the 3-D grid \"%s\" (registered in the component \"%s\") is updated while the surface field has been specified as a static one. Please check.", src_original_grid->get_grid_name(), src_original_grid->get_comp_full_name());
+        if (src_original_grid->get_V3D_lev_field_variation_type() == BOTTOM_FIELD_VARIATION_STATIC)
+            EXECUTION_REPORT(REPORT_WARNING, src_original_grid->get_comp_id(), !src_bottom_value_updated || !src_bottom_value_specified, "the 3-D level field of the 3-D grid \"%s\" (registered in the component \"%s\") is updated while the 3-D level field has been specified as a static one. Please check.", src_original_grid->get_grid_name(), src_original_grid->get_comp_full_name());
     }
-    if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->is_sigma_grid()) {
-        dst_bottom_value_specified = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->is_sigma_grid_surface_value_field_specified();
-        dst_bottom_value_updated = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->is_sigma_grid_surface_value_field_updated();
+    if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->is_sigma_grid() || dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->does_use_V3D_level_coord()) {
+        dst_bottom_value_specified = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->is_level_V3D_coord_trigger_field_specified();
+        dst_bottom_value_updated = dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->is_level_V3D_coord_trigger_field_updated();
         if (dst_original_grid->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_STATIC)
             EXECUTION_REPORT(REPORT_ERROR, dst_original_grid->get_comp_id(), !dst_bottom_value_updated || !dst_bottom_value_specified, "the surface field of the 3-D grid \"%s\" is updated while the surface field has been specified as a static one. Please verify", dst_original_grid->get_grid_name());
+        if (dst_original_grid->get_V3D_lev_field_variation_type() == BOTTOM_FIELD_VARIATION_STATIC)
+            EXECUTION_REPORT(REPORT_ERROR, dst_original_grid->get_comp_id(), !dst_bottom_value_updated || !dst_bottom_value_specified, "the 3-D level field of the 3-D grid \"%s\" (registered in the component \"%s\") is updated while the 3-D level field has been specified as a static one. Please verify", dst_original_grid->get_grid_name(), dst_original_grid->get_comp_full_name());
     }
 
 	comp_comm_group_mgt_mgr->get_global_node_of_local_comp(dst_original_grid->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, "vertical coord update");
     if (src_bottom_value_updated)
-        dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->calculate_lev_sigma_values();
+		if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->is_sigma_grid())
+	        dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->calculate_lev_sigma_values();
+		else dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->update_grid_center_3D_level_field_from_external();
     if (dst_bottom_value_updated)
-        dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->calculate_lev_sigma_values();
+		if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->is_sigma_grid())
+	        dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->calculate_lev_sigma_values();
+		else dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->update_grid_center_3D_level_field_from_external();
 	comp_comm_group_mgt_mgr->get_global_node_of_local_comp(dst_original_grid->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_stop(TIMING_TYPE_COMPUTATION, -1, -1, "vertical coord update");
 
 	comp_comm_group_mgt_mgr->get_global_node_of_local_comp(dst_original_grid->get_comp_id(),false,"")->get_performance_timing_mgr()->performance_timing_start(TIMING_TYPE_COMPUTATION, -1, -1, "dyn v1d wgt");

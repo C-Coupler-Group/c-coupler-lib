@@ -17,6 +17,7 @@
    public :: CCPL_register_field_instance
    public :: CCPL_register_IO_field_from_data_buffer
    public :: CCPL_get_current_calendar_time
+   public :: CCPL_register_V1D_grid_without_data
    public :: CCPL_register_V1D_Z_grid_via_model_data
    public :: CCPL_register_V1D_SIGMA_grid_via_model_data 
    public :: CCPL_register_V1D_HYBRID_grid_via_model_data
@@ -58,6 +59,7 @@
    public :: CCPL_register_CoR_defined_grid
    public :: CCPL_register_H2D_grid_via_file
    public :: CCPL_register_H2D_grid_from_another_component
+   public :: CCPL_set_3D_grid_3D_vertical_coord_field
    public :: CCPL_set_3D_grid_variable_surface_field
    public :: CCPL_set_3D_grid_constant_surface_field
    public :: CCPL_set_3D_grid_external_surface_field
@@ -2159,6 +2161,27 @@
 
 
 
+   integer FUNCTION CCPL_register_V1D_grid_without_data(comp_id, grid_name, coord_unit, grid_size, annotation)
+   implicit none
+   integer, intent(in)                                     :: comp_id
+   integer, intent(in)                                     :: grid_size
+   character(len=*), intent(in)                            :: grid_name
+   character(len=*), intent(in)                            :: coord_unit
+   character(len=*), intent(in),               optional    :: annotation
+   integer                                                 :: grid_id
+
+   if (present(annotation)) then
+       call register_V1D_grid_without_data(comp_id, grid_id, trim(grid_name)//char(0), trim(coord_unit)//char(0), grid_size, trim(annotation)//char(0))
+   else
+       call register_V1D_grid_without_data(comp_id, grid_id, trim(grid_name)//char(0), trim(coord_unit)//char(0), grid_size, trim("")//char(0))
+   endif
+
+   CCPL_register_V1D_grid_without_data = grid_id
+
+   END FUNCTION CCPL_register_V1D_grid_without_data
+
+
+
    integer FUNCTION CCPL_register_V1D_Z_grid_via_double_data(comp_id, grid_name, coord_unit, coord_values, annotation)
    implicit none
    integer, intent(in)                                     :: comp_id
@@ -2169,9 +2192,9 @@
    integer                                                 :: grid_id
 
    if (present(annotation)) then
-       call register_V1D_grid_with_data(comp_id, grid_id, trim(grid_name)//char(0), 1, trim(coord_unit)//char(0), size(coord_values), size(coord_values), trim("real8")//char(0), coord_values, coord_values, coord_values, coord_values, trim(annotation)//char(0))
+       call register_V1D_grid_with_data(comp_id, grid_id, trim(grid_name)//char(0), 1, trim(coord_unit)//char(0), size(coord_values), size(coord_values), trim("real8")//char(0), coord_values, coord_values, coord_values, trim(annotation)//char(0))
    else
-       call register_V1D_grid_with_data(comp_id, grid_id, trim(grid_name)//char(0), 1, trim(coord_unit)//char(0), size(coord_values), size(coord_values), trim("real8")//char(0), coord_values, coord_values, coord_values, coord_values, trim("")//char(0))
+       call register_V1D_grid_with_data(comp_id, grid_id, trim(grid_name)//char(0), 1, trim(coord_unit)//char(0), size(coord_values), size(coord_values), trim("real8")//char(0), coord_values, coord_values, coord_values, trim("")//char(0))
    endif
 
    CCPL_register_V1D_Z_grid_via_double_data = grid_id
@@ -2190,9 +2213,9 @@
    integer                                                 :: grid_id
 
    if (present(annotation)) then
-       call register_V1D_grid_with_data(comp_id, grid_id, trim(grid_name)//char(0), 1, trim(coord_unit)//char(0), size(coord_values), size(coord_values), trim("real4")//char(0), coord_values, coord_values, coord_values, coord_values, trim(annotation)//char(0))
+       call register_V1D_grid_with_data(comp_id, grid_id, trim(grid_name)//char(0), 1, trim(coord_unit)//char(0), size(coord_values), size(coord_values), trim("real4")//char(0), coord_values, coord_values, coord_values, trim(annotation)//char(0))
    else
-       call register_V1D_grid_with_data(comp_id, grid_id, trim(grid_name)//char(0), 1, trim(coord_unit)//char(0), size(coord_values), size(coord_values), trim("real4")//char(0), coord_values, coord_values, coord_values, coord_values, trim("")//char(0))
+       call register_V1D_grid_with_data(comp_id, grid_id, trim(grid_name)//char(0), 1, trim(coord_unit)//char(0), size(coord_values), size(coord_values), trim("real4")//char(0), coord_values, coord_values, coord_values, trim("")//char(0))
    endif
 
    CCPL_register_V1D_Z_grid_via_float_data = grid_id
@@ -2325,6 +2348,23 @@
    deallocate(temp_int)
 
    END FUNCTION CCPL_register_MD_grid_via_multi_grids 
+
+
+
+   SUBROUTINE CCPL_set_3D_grid_3D_vertical_coord_field(grid_id, field_id, label, annotation)
+   implicit none
+   integer, intent(in)                                     :: grid_id
+   integer, intent(in)                                     :: field_id
+   character(len=*), intent(in)                            :: label
+   character(len=*), intent(in),               optional    :: annotation
+
+   if (present(annotation)) then
+       call set_3D_grid_3D_vertical_coord_field(grid_id, field_id, trim(label)//char(0), trim(annotation)//char(0))
+   else
+       call set_3D_grid_3D_vertical_coord_field(grid_id, field_id, trim(label)//char(0), trim("")//char(0))
+   endif
+
+   END SUBROUTINE CCPL_set_3D_grid_3D_vertical_coord_field
 
 
 

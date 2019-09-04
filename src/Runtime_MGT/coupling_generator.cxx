@@ -295,7 +295,7 @@ bool Coupling_connection::exchange_grid(Comp_comm_group_mgt_node *sender_comp_no
 {
     char *temp_array_buffer = NULL;
     long buffer_max_size, buffer_content_size;
-    int original_grid_status, *all_original_grid_status, num_processes, bottom_field_variation_type;
+    int original_grid_status, *all_original_grid_status, num_processes, bottom_field_variation_type, V3D_lev_field_variation_type;
     long checksum_lon, checksum_lat, checksum_mask;
     bool should_exchange_grid = false;
 
@@ -347,6 +347,7 @@ bool Coupling_connection::exchange_grid(Comp_comm_group_mgt_node *sender_comp_no
     if (original_grid_status == 0) {
         read_data_from_array_buffer(&checksum_mask, sizeof(long), temp_array_buffer, buffer_content_size, true);
         read_data_from_array_buffer(&bottom_field_variation_type, sizeof(int), temp_array_buffer, buffer_content_size, true);
+        read_data_from_array_buffer(&V3D_lev_field_variation_type, sizeof(int), temp_array_buffer, buffer_content_size, true);
         Remap_grid_class *mirror_grid = new Remap_grid_class(NULL, sender_comp_node->get_full_name(), temp_array_buffer, buffer_content_size);
         mirror_grid = remap_grid_manager->search_remap_grid_with_grid_name(mirror_grid->get_grid_name());
         EXECUTION_REPORT(REPORT_ERROR, -1, buffer_content_size == 0, "software error in Coupling_connection::exchange_grid: wrong buffer_content_size");
@@ -354,6 +355,7 @@ bool Coupling_connection::exchange_grid(Comp_comm_group_mgt_node *sender_comp_no
         if (receiver_original_grid->get_bottom_field_variation_type() != bottom_field_variation_type)
             EXECUTION_REPORT(REPORT_ERROR, -1, receiver_original_grid->get_original_CoR_grid()->is_sigma_grid(), "Software error in Coupling_connection::exchange_grid regarding bottom_field_variation_type");
         receiver_original_grid->set_bottom_field_variation_type(bottom_field_variation_type);
+		receiver_original_grid->set_V3D_lev_field_variation_type(V3D_lev_field_variation_type);
         receiver_original_grid->set_grid_checksum(checksum_mask);
     }
 
@@ -390,25 +392,28 @@ void Coupling_connection::add_bottom_field_coupling_info(int field_connection_in
     V3D_grid_bottom_field_coupling_info *bottom_field_coupling_info = new V3D_grid_bottom_field_coupling_info;
     bottom_field_coupling_info->V3D_runtime_remapping_weights = V3D_remapping_weights;
     bottom_field_coupling_info->field_connection_indx = field_connection_indx;
-    bottom_field_coupling_info->is_dynamic_bottom_field = V3D_remapping_weights->get_src_original_grid()->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_DYNAMIC;
+	if (V3D_remapping_weights->get_src_original_grid()->get_original_CoR_grid()->is_sigma_grid())
+	    bottom_field_coupling_info->is_dynamic_bottom_field = V3D_remapping_weights->get_src_original_grid()->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_DYNAMIC;
+	else bottom_field_coupling_info->is_dynamic_bottom_field = V3D_remapping_weights->get_src_original_grid()->get_V3D_lev_field_variation_type() == BOTTOM_FIELD_VARIATION_DYNAMIC;
     bottom_field_coupling_info->bottom_field_inst = V3D_remapping_weights->allocate_intermediate_V3D_grid_bottom_field();
-    bottom_field_coupling_info->H2D_runtime_remapping_weights = runtime_remapping_weights_mgr->search_or_generate_runtime_remapping_weights(src_comp_node->get_comp_full_name(), dst_comp_node->get_comp_full_name(), 
-        original_grid_mgr->get_original_grid(V3D_remapping_weights->get_src_decomp_info()->get_grid_id()), original_grid_mgr->get_original_grid(V3D_remapping_weights->get_dst_decomp_info()->get_grid_id()), 
-        remapping_setting, V3D_remapping_weights->get_dst_decomp_info());
+	if (V3D_remapping_weights->get_src_original_grid()->get_original_CoR_grid()->is_sigma_grid())
+	    bottom_field_coupling_info->H2D_runtime_remapping_weights = runtime_remapping_weights_mgr->search_or_generate_runtime_remapping_weights(src_comp_node->get_comp_full_name(), dst_comp_node->get_comp_full_name(), 
+	        original_grid_mgr->get_original_grid(V3D_remapping_weights->get_src_decomp_info()->get_grid_id()), original_grid_mgr->get_original_grid(V3D_remapping_weights->get_dst_decomp_info()->get_grid_id()), 
+    	    remapping_setting, V3D_remapping_weights->get_dst_decomp_info());
+	else bottom_field_coupling_info->H2D_runtime_remapping_weights = V3D_remapping_weights;
 
     if (V3D_remapping_weights->get_parallel_remapping_weights() != NULL) {
         Remap_weight_of_operator_class *dynamic_V1D_remap_weight_of_operator = V3D_remapping_weights->get_parallel_remapping_weights()->get_dynamic_V1D_remap_weight_of_operator();
         EXECUTION_REPORT(REPORT_ERROR, -1, dynamic_V1D_remap_weight_of_operator != NULL, "Software error in Coupling_connection::add_bottom_field_coupling_info: do not have dynamic_V1D_remap_weight_of_operator");
-        
-        EXECUTION_REPORT(REPORT_ERROR, -1, bottom_field_coupling_info->bottom_field_inst->get_field_data()->get_coord_value_grid()->is_subset_of_grid(dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()) && bottom_field_coupling_info->bottom_field_inst->get_field_data()->get_coord_value_grid()->is_subset_of_grid(dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()), "Software error in Coupling_connection::add_bottom_field_coupling_info: wrong surface field grid or wrong 2-D+1-D order");
-        if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->get_sigma_grid_dynamic_surface_value_field() != NULL)
-            EXECUTION_REPORT(REPORT_ERROR, -1, dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->get_sigma_grid_dynamic_surface_value_field() == bottom_field_coupling_info->bottom_field_inst->get_field_data(), "Software error in Coupling_connection::add_bottom_field_coupling_info: the surface field of the same grid has been set to different data fields");
-        else dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->set_sigma_grid_dynamic_surface_value_field(bottom_field_coupling_info->bottom_field_inst->get_field_data());
+        EXECUTION_REPORT(REPORT_ERROR, -1, !bottom_field_coupling_info->bottom_field_inst->get_field_data()->get_coord_value_grid()->is_sigma_grid(), "Software error in Coupling_connection::add_bottom_field_coupling_info: wrong surface field grid or wrong 2-D+1-D order");
+        if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->get_level_V3D_coord_dynamic_trigger_field() != NULL)
+            EXECUTION_REPORT(REPORT_ERROR, -1, dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->get_level_V3D_coord_dynamic_trigger_field() == bottom_field_coupling_info->bottom_field_inst->get_field_data(), "Software error in Coupling_connection::add_bottom_field_coupling_info: the surface field of the same grid has been set to different data fields");
+        else dynamic_V1D_remap_weight_of_operator->get_field_data_grid_src()->set_level_V3D_coord_dynamic_trigger_field(bottom_field_coupling_info->bottom_field_inst->get_field_data());
 
         if (V3D_remapping_weights->get_dst_original_grid()->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_EXTERNAL) {
-            if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->get_sigma_grid_dynamic_surface_value_field() != NULL)
-                EXECUTION_REPORT(REPORT_ERROR, -1, dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->get_sigma_grid_dynamic_surface_value_field() == bottom_field_coupling_info->bottom_field_inst->get_field_data(), "Software error in Coupling_connection::add_bottom_field_coupling_info: the surface field of the same grid has been set to different data fields");
-            else dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->set_sigma_grid_dynamic_surface_value_field(bottom_field_coupling_info->bottom_field_inst->get_field_data());
+            if (dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->get_level_V3D_coord_dynamic_trigger_field() != NULL)
+                EXECUTION_REPORT(REPORT_ERROR, -1, dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->get_level_V3D_coord_dynamic_trigger_field() == bottom_field_coupling_info->bottom_field_inst->get_field_data(), "Software error in Coupling_connection::add_bottom_field_coupling_info: the surface field of the same grid has been set to different data fields");
+            else dynamic_V1D_remap_weight_of_operator->get_field_data_grid_dst()->set_level_V3D_coord_dynamic_trigger_field(bottom_field_coupling_info->bottom_field_inst->get_field_data());
         }
     }
 
@@ -433,9 +438,17 @@ void Coupling_connection::generate_src_bottom_field_coupling_info()
             bottom_field_coupling_info->H2D_runtime_remapping_weights = NULL; 
             bottom_field_coupling_info->field_connection_indx = bottom_fields_indx[i];
             Original_grid_info *src_original_grid = original_grid_mgr->search_grid_info(src_fields_info[bottom_fields_indx[i]]->grid_name, comp_comm_group_mgt_mgr->search_global_node(src_comp_interfaces[0].first)->get_comp_id());
-            EXECUTION_REPORT(REPORT_ERROR, -1, src_original_grid->is_3D_grid() && src_original_grid->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_DYNAMIC || src_original_grid->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_STATIC, "Software error in Coupling_connection::generate_src_bottom_field_coupling_info: wrong grid");
-            bottom_field_coupling_info->is_dynamic_bottom_field = src_original_grid->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_DYNAMIC;
-            bottom_field_coupling_info->bottom_field_inst = memory_manager->get_field_instance(src_original_grid->get_bottom_field_id());
+			if (src_original_grid->get_bottom_field_id() != -1) {				
+				EXECUTION_REPORT(REPORT_ERROR, -1, src_original_grid->is_3D_grid() && src_original_grid->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_DYNAMIC || src_original_grid->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_STATIC, "Software error in Coupling_connection::generate_src_bottom_field_coupling_info: wrong grid");
+				bottom_field_coupling_info->is_dynamic_bottom_field = src_original_grid->get_bottom_field_variation_type() == BOTTOM_FIELD_VARIATION_DYNAMIC;
+	            bottom_field_coupling_info->bottom_field_inst = memory_manager->get_field_instance(src_original_grid->get_bottom_field_id());
+			}
+			else if (src_original_grid->get_V3D_lev_field_id() != -1) {
+				EXECUTION_REPORT(REPORT_ERROR, -1, src_original_grid->get_V3D_lev_field_variation_type() == BOTTOM_FIELD_VARIATION_DYNAMIC || src_original_grid->get_V3D_lev_field_variation_type() == BOTTOM_FIELD_VARIATION_STATIC, "Software error in Coupling_connection::generate_src_bottom_field_coupling_info: wrong grid");
+				bottom_field_coupling_info->is_dynamic_bottom_field = src_original_grid->get_V3D_lev_field_variation_type() == BOTTOM_FIELD_VARIATION_DYNAMIC;
+	            bottom_field_coupling_info->bottom_field_inst = memory_manager->get_field_instance(src_original_grid->get_V3D_lev_field_id());
+			}
+			else EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, false, "Software error in Coupling_connection::generate_src_bottom_field_coupling_info");
             EXECUTION_REPORT(REPORT_ERROR, -1, original_grid_mgr->get_original_CoR_grid(bottom_field_coupling_info->bottom_field_inst->get_grid_id())->is_subset_of_grid(src_original_grid->get_original_CoR_grid()), "Software error in Coupling_connection::generate_src_bottom_field_coupling_info: wrong grid relation");
             src_bottom_fields_coupling_info.push_back(bottom_field_coupling_info);
         }        
@@ -500,7 +513,7 @@ void Coupling_connection::generate_interpolation(bool has_frac_remapping)
                     EXECUTION_REPORT(REPORT_ERROR, dst_comp_node->get_comp_id(), src_original_grid->get_original_CoR_grid()->is_sigma_grid(), "Fail to generate an interpolation from component model \"%s\" to \"%s\": the target 3-D grid \"%s\" has an external surface field; at this time, the source 3-D grid \"%s\" should include SIGMA or HYBRID vertical coordinate but actually not. Please verify. ", src_comp_interfaces[0].first, dst_comp_full_name, dst_original_grid->get_grid_name(), src_original_grid->get_grid_name());
             }    
             dst_fields_info[i]->runtime_remapping_weights = runtime_remapping_weights_mgr->search_or_generate_runtime_remapping_weights(src_comp_node->get_comp_full_name(), dst_comp_node->get_comp_full_name(), src_original_grid, dst_original_grid, &field_remapping_setting, decomps_info_mgr->search_decomp_info(dst_fields_info[i]->decomp_name, dst_comp_node->get_comp_id()));
-            if (src_original_grid->get_original_CoR_grid()->is_sigma_grid())
+            if (src_original_grid->get_original_CoR_grid()->is_sigma_grid() || src_original_grid->get_original_CoR_grid()->does_use_V3D_level_coord())
                 add_bottom_field_coupling_info(i, dst_fields_info[i]->runtime_remapping_weights, &field_remapping_setting);
         }
     }

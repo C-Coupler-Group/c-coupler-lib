@@ -20,7 +20,7 @@
 class Decomp_grid_info
 {
     private:
-        char decomp_name[NAME_STR_SIZE];
+        char decomp_name[NAME_STR_SIZE*2];
         int decomp_id;
         Remap_grid_class *decomp_grid;
         Remap_grid_class *original_grid;
@@ -44,6 +44,8 @@ class Decomp_grid_mgt
         Decomp_grid_mgt() {}
         Decomp_grid_info *search_decomp_grid_info(int, Remap_grid_class*, bool);
         ~Decomp_grid_mgt();
+		void set_decomp_grids_using_3D_level_coord(Remap_grid_class *);
+		Remap_grid_class *search_decomp_grid_original_grid(int, Remap_grid_class*);
 };
 
 #endif

@@ -61,15 +61,18 @@ void recursively_remove_directory()
         return;
  
     while ((ent = readdir(cur_dir)) != NULL) {
-        stat(ent->d_name, &st);
+        if (stat(ent->d_name, &st) != 0)
+			continue;
      
         if (words_are_the_same(ent->d_name, ".") || words_are_the_same(ent->d_name, ".."))
             continue;
  
         if (S_ISDIR(st.st_mode)) {
+		    char old_path[NAME_STR_SIZE];
+		    getcwd(old_path, NAME_STR_SIZE);
             chdir(ent->d_name);
             recursively_remove_directory();
-            chdir("..");
+            chdir(old_path);
         }
         remove(ent->d_name);
     }

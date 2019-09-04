@@ -733,6 +733,25 @@ extern "C" void ccpl_end_registration_
 
 
 #ifdef LINK_WITHOUT_UNDERLINE
+extern "C" void register_v1d_grid_without_data
+#else
+extern "C" void register_v1d_grid_without_data_
+#endif
+(int *comp_id, int *grid_id, const char *grid_name, const char *coord_unit, int *grid_size, const char *annotation)
+{
+	char API_label[NAME_STR_SIZE];
+	
+	EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "start to register V1D grid %s", grid_name);
+	common_checking_for_grid_registration(*comp_id, grid_name, coord_unit, API_ID_GRID_MGT_REG_V1D_GRID_NO_DATA, annotation);
+    get_API_hint(*comp_id, API_ID_GRID_MGT_REG_V1D_GRID_NO_DATA, API_label);
+    EXECUTION_REPORT(REPORT_ERROR, *comp_id, *grid_size > 0, "Error happens when calling the API \"%s\" to register a vertical grid \"%s\": the input paramter \"grid_size\" is not larger than 0. Please verify the model code with the annotation \"%s\"", API_label, grid_name, annotation);
+    *grid_id = original_grid_mgr->register_V1D_grid_via_data(API_ID_GRID_MGT_REG_V1D_GRID_NO_DATA, *comp_id, grid_name, 4, coord_unit, *grid_size, 0.0, NULL, NULL, annotation);
+	
+	EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "Finish registering V1D grid %s", grid_name);
+}
+
+
+#ifdef LINK_WITHOUT_UNDERLINE
 extern "C" void register_v1d_grid_with_data
 #else
 extern "C" void register_v1d_grid_with_data_
@@ -788,6 +807,20 @@ extern "C" void register_v1d_grid_with_data_
     delete [] temp_value3;
 
     EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "Finish registering V1D grid %s", grid_name);
+}
+
+
+#ifdef LINK_WITHOUT_UNDERLINE
+extern "C" void set_3d_grid_3d_vertical_coord_field
+#else
+extern "C" void set_3d_grid_3d_vertical_coord_field_
+#endif
+(int *grid_id, int *field_id, const char *static_or_dynamic, const char *annotation)
+{
+    EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "Start to execute CCPL_set_3D_grid_3D_vertical_coord_field");
+	check_for_component_registered(-1, API_ID_GRID_MGT_SET_3D_GRID_3D_VERT_FLD, annotation, true);
+	original_grid_mgr->set_3D_grid_3D_vertical_coord_field_inst(*grid_id, *field_id, static_or_dynamic, annotation);
+	EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "Finish executing CCPL_set_3D_grid_3D_vertical_coord_field");
 }
 
 

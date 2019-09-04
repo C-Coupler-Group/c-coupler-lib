@@ -184,7 +184,7 @@ Runtime_trans_algorithm::Runtime_trans_algorithm(bool send_or_receive, int num_t
 
     total_buf_size = data_buf_size + (4*num_remote_procs + 4) * sizeof(long);
     total_buf = (char*) (new long[(total_buf_size+sizeof(long)-1)/sizeof(long)]);
-    send_tag_buf = (long *) total_buf;    
+    send_tag_buf = (long *) total_buf;
     temp_receive_data_buffer = (char*)(new long [(data_buf_size+sizeof(long)-1)/sizeof(long)]);
 
     for (int i = 0; i < 4; i ++)
@@ -463,6 +463,8 @@ void Runtime_trans_algorithm::receive_data_in_temp_buffer()
         if (transfer_size_with_remote_procs[remote_proc_index] == 0) 
             continue;
         data_buf = (void *) (total_buf + recv_displs_in_current_proc[remote_proc_index] + 4*sizeof(long));
+		EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, recv_displs_in_current_proc[remote_proc_index] + 4*sizeof(long) >= 0 && recv_displs_in_current_proc[remote_proc_index] + 4*sizeof(long) + transfer_size_with_remote_procs[remote_proc_index] <= total_buf_size, "Software error in Runtime_trans_algorithm::receive_data_in_temp_buffer: %d + %d vs %d", recv_displs_in_current_proc[remote_proc_index] + 4*sizeof(long), transfer_size_with_remote_procs[remote_proc_index], total_buf_size);
+		EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, offset >= 0 && offset + transfer_size_with_remote_procs[remote_proc_index] <= data_buf_size, "Software error in Runtime_trans_algorithm::receive_data_in_temp_buffer: %d + %d vs %d", offset, transfer_size_with_remote_procs[remote_proc_index], data_buf_size);
         memcpy(temp_receive_data_buffer+offset, data_buf, transfer_size_with_remote_procs[remote_proc_index]);
         offset += transfer_size_with_remote_procs[remote_proc_index];
     }    

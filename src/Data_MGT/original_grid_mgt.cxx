@@ -20,7 +20,9 @@ Original_grid_info::Original_grid_info(int comp_id, int grid_id, const char *gri
     this->grid_id = grid_id;
     this->original_CoR_grid = original_CoR_grid;
     this->bottom_field_variation_type = BOTTOM_FIELD_VARIATION_UNSET;
+	this->V3D_lev_field_variation_type = BOTTOM_FIELD_VARIATION_UNSET;
     this->bottom_field_name = NULL;
+	this->V3D_lev_field_id = -1;
     this->bottom_field_id = -1;
     this->checksum_H2D_mask = -1;
     this->mid_point_grid = NULL;
@@ -30,7 +32,7 @@ Original_grid_info::Original_grid_info(int comp_id, int grid_id, const char *gri
     annotation_mgr->add_annotation(this->grid_id, "grid_registration", annotation);
     generate_remapping_grids();
 
-    if (H2D_sub_CoR_grid != NULL) {
+    if (H2D_sub_CoR_grid != NULL && model_registration) {
         char *grid_data = (char *) (new double [H2D_sub_CoR_grid->get_grid_size()]);
         get_grid_data(-1, "mask", DATA_TYPE_INT, H2D_sub_CoR_grid->get_grid_size(), grid_data, "internal", "internal");
         checksum_H2D_mask = calculate_checksum_of_array(grid_data, H2D_sub_CoR_grid->get_grid_size(), sizeof(int), NULL, NULL);
@@ -156,6 +158,15 @@ bool Original_grid_info::is_V1D_sub_grid_after_H2D_sub_grid()
 }
 
 
+void Original_grid_info::set_unique_3D_lev_field(int field_id, const char *type, const char *annotation) 
+{ 
+    EXECUTION_REPORT(REPORT_ERROR, -1, bottom_field_variation_type == BOTTOM_FIELD_VARIATION_UNSET && V3D_lev_field_variation_type == BOTTOM_FIELD_VARIATION_UNSET, "Software error in Original_grid_info::set_unique_3D_lev_field");
+    annotation_mgr->add_annotation(grid_id, "set 3-D level field", annotation);
+    V3D_lev_field_variation_type = words_are_the_same(type, "constant")? 0 : 1;
+	V3D_lev_field_id = field_id;
+} 
+
+
 void Original_grid_info::set_unique_bottom_field(int field_id, int type, const char *annotation) 
 { 
     EXECUTION_REPORT(REPORT_ERROR, -1, bottom_field_variation_type == BOTTOM_FIELD_VARIATION_UNSET, "Software error in Original_grid_info::set_unique_bottom_field");
@@ -165,7 +176,7 @@ void Original_grid_info::set_unique_bottom_field(int field_id, int type, const c
         Field_mem_info *field_inst = memory_manager->get_field_instance(field_id);
         bottom_field_name = strdup(field_inst->get_field_name());
         bottom_field_id = field_id;
-        decomp_grids_mgr->search_decomp_grid_info(field_inst->get_decomp_id(), get_original_CoR_grid(), false)->get_decomp_grid()->set_sigma_grid_dynamic_surface_value_field(field_inst->get_field_data());
+        decomp_grids_mgr->search_decomp_grid_info(field_inst->get_decomp_id(), get_original_CoR_grid(), false)->get_decomp_grid()->set_level_V3D_coord_dynamic_trigger_field(field_inst->get_field_data());
     }
 } 
 
@@ -173,6 +184,7 @@ void Original_grid_info::set_unique_bottom_field(int field_id, int type, const c
 void Original_grid_info::write_grid_into_array(char **temp_array_buffer, long &buffer_max_size, long &buffer_content_size)
 {
     get_original_CoR_grid()->write_grid_into_array(temp_array_buffer, buffer_max_size, buffer_content_size);
+	write_data_into_array_buffer(&V3D_lev_field_variation_type, sizeof(int), temp_array_buffer, buffer_max_size, buffer_content_size);
     write_data_into_array_buffer(&bottom_field_variation_type, sizeof(int), temp_array_buffer, buffer_max_size, buffer_content_size);
     write_data_into_array_buffer(&checksum_H2D_mask, sizeof(long), temp_array_buffer, buffer_max_size, buffer_content_size);
 }
@@ -849,16 +861,29 @@ int Original_grid_mgt::register_V1D_grid_via_data(int API_id, int comp_id, const
     
     check_API_parameter_int(comp_id, API_id, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id,"in register_V1D_grid_via_data"), NULL, grid_size, "implicit grid size", annotation);
     check_API_parameter_data_array(comp_id, API_id, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id,"in register_V1D_grid_via_data"), "registering a V1D grid", 1, sizeof(double), (const char*)(&value1), "floating-point parameters", annotation);
-    check_API_parameter_data_array(comp_id, API_id, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id,"in register_V1D_grid_via_data"), "registering a V1D grid", grid_size, sizeof(double), (const char*)(value2), "floating-point parameters", annotation);
-    check_API_parameter_data_array(comp_id, API_id, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id,"in register_V1D_grid_via_data"), "registering a V1D grid", grid_size, sizeof(double), (const char*)(value3), "floating-point parameters", annotation);
+	if (value2 != NULL)
+	    check_API_parameter_data_array(comp_id, API_id, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id,"in register_V1D_grid_via_data"), "registering a V1D grid", grid_size, sizeof(double), (const char*)(value2), "floating-point parameters", annotation);
+	if (value3 != NULL)
+	    check_API_parameter_data_array(comp_id, API_id, comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id,"in register_V1D_grid_via_data"), "registering a V1D grid", grid_size, sizeof(double), (const char*)(value3), "floating-point parameters", annotation);
 
     sprintf(full_grid_name, "%s@%s", grid_name, comp_comm_group_mgt_mgr->get_global_node_of_local_comp(comp_id,false,"in register_V1D_grid_via_data")->get_full_name());
-    CoR_V1D_grid = new Remap_grid_class(full_grid_name, COORD_LABEL_LEV, coord_unit, NULL, grid_size);
-    if (grid_type == 1)
-        CoR_V1D_grid->read_grid_data_from_array("center", COORD_LABEL_LEV, DATA_TYPE_DOUBLE, (const char*)value2, 0);
-    else if (grid_type == 2)
-        CoR_V1D_grid->set_lev_grid_sigma_info(value1, value2, NULL, 1.0);
-    else CoR_V1D_grid->set_lev_grid_sigma_info(value1, value2, value3, 1.0);
+	if (grid_type == 0)
+		CoR_V1D_grid = new Remap_grid_class(full_grid_name, COORD_LABEL_TRACER, "", NULL, grid_size);
+	else if (grid_type <= 4)
+		CoR_V1D_grid = new Remap_grid_class(full_grid_name, COORD_LABEL_LEV, coord_unit, NULL, grid_size);
+	switch(grid_type) {
+		case 1:
+			CoR_V1D_grid->read_grid_data_from_array("center", COORD_LABEL_LEV, DATA_TYPE_DOUBLE, (const char*)value2, 0);
+			break;
+		case 2:
+			CoR_V1D_grid->set_lev_grid_sigma_info(value1, value2, NULL, 1.0);
+			break;
+		case 3:
+			CoR_V1D_grid->set_lev_grid_sigma_info(value1, value2, value3, 1.0);
+			break;
+		default:
+			break;
+	}
 
     original_grids.push_back(new Original_grid_info(comp_id, original_grids.size()|TYPE_GRID_LOCAL_ID_PREFIX, grid_name, annotation, CoR_V1D_grid, true));
 
@@ -922,6 +947,39 @@ int Original_grid_mgt::register_md_grid_via_multi_grids(int comp_id, const char 
 }
 
 
+void Original_grid_mgt::set_3D_grid_3D_vertical_coord_field_inst(int grid_id, int field_id, const char *static_or_dynamic, const char *annotation)
+{
+	char API_label[NAME_STR_SIZE];
+	Original_grid_info *original_grid;
+	Field_mem_info *field_inst;
+	int comp_id;
+	MPI_Comm local_comm;
+
+
+	get_API_hint(-1, API_ID_GRID_MGT_SET_3D_GRID_3D_VERT_FLD, API_label); 
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, is_grid_id_legal(grid_id), "Error happens when calling the API \"CCPL_set_3D_grid_3D_vertical_coord_field\" to set the 3-D vertical coordinate field of a 3-D grid: the parameter of \"grid_id\" is wrong. Please verify the model code with the annotation \"%s\".", annotation);
+	original_grid = original_grid_mgr->get_original_grid(grid_id);
+	comp_id = original_grid->get_comp_id();
+    local_comm = comp_comm_group_mgt_mgr->get_comm_group_of_local_comp(comp_id, "in Original_grid_mgt::set_3D_grid_3D_vertical_coord_field_inst");
+    check_API_parameter_string(comp_id, API_ID_GRID_MGT_SET_3D_GRID_3D_VERT_FLD, local_comm, "setting the 3-D vertical coordinate field of a 3-D grid", original_grid->get_grid_name(), "\"grid_id\" (the name of the 3-D grid)", annotation);
+    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, comp_id, original_grid->is_3D_grid(), "Error happens when calling the API \"%s\" to set the 3-D vertical coordinate field of the grid \"%s\": this grid is not a 3-D grid. Please check the model code related to the annotation \"%s\".", API_label, original_grid->get_grid_name(), annotation);
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, comp_id, !original_grid->get_original_CoR_grid()->is_sigma_grid(), "Error happens when calling the API \"%s\" to set the 3-D vertical coordinate field of the grid \"%s\": cannot set a 3-D vertical field to this grid because its V1D sub grid is a SIGMA or HYBRID grid. Please verify the model code with the annotation \"%s\".", API_label, original_grid->get_grid_name(), annotation);
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, comp_id, !original_grid->get_original_CoR_grid()->does_use_V3D_level_coord(), "Error happens when calling the API \"%s\" to set the 3-D vertical coordinate field of the grid \"%s\": cannot set a 3-D vertical field to this grid because its vertical coordinate values have already been set. Please verify the model code with the annotation \"%s\".", API_label, original_grid->get_grid_name(), annotation);
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, comp_id, memory_manager->check_is_legal_field_instance_id(field_id), "Error happens when calling the API \"%s\" to set the 3-D vertical coordinate field of the grid \"%s\": the parameter of \"field_id\" is wrong. Please verify the model code with the annotation \"%s\".", API_label, original_grid->get_grid_name(), annotation);
+	check_API_parameter_field_instance(comp_id, API_ID_GRID_MGT_SET_3D_GRID_3D_VERT_FLD, local_comm, "setting the 3-D vertical coordinate field of a 3-D grid", field_id, "\"field_id\" (the corresponding 3-D field)", annotation);
+	field_inst = memory_manager->get_field_instance(field_id);
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, comp_id, field_inst->get_grid_id() == grid_id, "Error happens when calling the API \"CCPL_set_3D_grid_3D_vertical_coord_field\" to set the 3-D vertical coordinate field of the 3-D grid \"%s\": the given field instance is not on the given 3-D grid. Please verify the model code with the annotation \"%s\".", original_grid->get_grid_name(), annotation);
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, comp_id, words_are_the_same(original_grid->get_original_CoR_grid()->get_a_leaf_grid(COORD_LABEL_LEV)->get_coord_unit(), field_inst->get_unit()), "Error happens when calling the API \"CCPL_set_3D_grid_3D_vertical_coord_field\" to set the 3-D vertical coordinate field of the 3-D grid \"%s\": The unit (\"%s\") of the grid coordinate is different from the unit (\"%s\") of the given field instance (\"%s\"). Please verify the model code with the annotation \"%s\".", original_grid->get_grid_name(), original_grid->get_original_CoR_grid()->get_a_leaf_grid(COORD_LABEL_LEV)->get_coord_unit(), field_inst->get_unit(), field_inst->get_field_name(), annotation);
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, comp_id, words_are_the_same(static_or_dynamic, "constant") || words_are_the_same(static_or_dynamic, "variable"), "Error happens when calling the API \"CCPL_set_3D_grid_3D_vertical_coord_field\" to set the 3-D vertical coordinate field of the 3-D grid \"%s\": the input parameter of \"label\" (the current value is \"%s\") must be \"constant\" or \"variable\". Please verify the model code with the annotation \"%s\".", original_grid->get_grid_name(), static_or_dynamic, annotation);
+    check_API_parameter_string(comp_id, API_ID_GRID_MGT_SET_3D_GRID_3D_VERT_FLD, local_comm, "setting the 3-D vertical coordinate field of a 3-D grid", original_grid->get_grid_name(), "\"label\" (specification for constant or variable of 3-D field)", annotation);
+    if (original_grid->get_V3D_lev_field_variation_type() != BOTTOM_FIELD_VARIATION_UNSET)
+        EXECUTION_REPORT(REPORT_ERROR, comp_id, false, "Error happens when calling the API \"%s\" to set the 3-D vertical coordinate field of the 3-D grid \"%s\": the 3-D vertical coordinate field has been set before at the model code with the annotation \"%s\" and cannot be set again at the model code with the annotation \"%s\".", API_label, original_grid->get_grid_name(), annotation_mgr->get_annotation(grid_id, "set 3-D level field"), annotation);
+	original_grid->set_unique_3D_lev_field(field_id, static_or_dynamic, annotation);	
+	original_grid->get_original_CoR_grid()->set_using_V3D_level_coord();
+	decomp_grids_mgr->set_decomp_grids_using_3D_level_coord(original_grid->get_original_CoR_grid());
+}
+
+
 void Original_grid_mgt::set_3d_grid_bottom_field(int comp_id, int grid_id, int field_id, int static_or_dynamic_or_external, int API_id, const char *API_label, const char *annotation)
 {
     Original_grid_info *original_grid = original_grid_mgr->get_original_grid(grid_id);
@@ -931,7 +989,7 @@ void Original_grid_mgt::set_3d_grid_bottom_field(int comp_id, int grid_id, int f
 
     synchronize_comp_processes_for_API(comp_id, API_id, local_comm, "setting the surface field of a 3-D grid", annotation);
     check_API_parameter_string(comp_id, API_id, local_comm, "setting the surface field of a 3-D grid", original_grid->get_grid_name(), "\"grid_id\" (the name of the 3-D grid)", annotation);
-    EXECUTION_REPORT(REPORT_ERROR, comp_id, original_grid->is_3D_grid(), "Error happens when calling the API \"%s\" to set the surface field of a 3-D grid \"%s\": this grid is not a 3-D grid. Please check the model code related to the annotation \"%s\".", API_label, original_grid->get_grid_name(), annotation);
+    EXECUTION_REPORT(REPORT_ERROR, comp_id, original_grid->is_3D_grid(), "Error happens when calling the API \"%s\" to set the surface field of the grid \"%s\": this grid is not a 3-D grid. Please check the model code related to the annotation \"%s\".", API_label, original_grid->get_grid_name(), annotation);
     EXECUTION_REPORT(REPORT_ERROR, comp_id, original_grid->get_original_CoR_grid()->is_sigma_grid(), "Error happens when calling the API \"%s\" to set the surface field of the 3-D grid \"%s\": cannot set the surface field to this grid because its V1D sub grid is not a SIGMA or HYBRID grid. Please check the model code related to the annotation \"%s\".", API_label, original_grid->get_grid_name(), annotation);
     if (original_grid->get_bottom_field_variation_type() != BOTTOM_FIELD_VARIATION_UNSET)
         EXECUTION_REPORT(REPORT_ERROR, comp_id, false, "Error happens when calling the API \"%s\" to set the surface field of the 3-D grid \"%s\": the surface field has been set before at the model code with the annotation \"%s\" and cannot be set again at the model code with the annotation \"%s\".", API_label, original_grid->get_grid_name(), annotation_mgr->get_annotation(grid_id, "set surface field"), annotation);
@@ -1081,7 +1139,7 @@ bool Original_grid_mgt::is_V1D_sub_grid_after_H2D_sub_grid(int grid_id)
 void Original_grid_mgt::register_mid_point_grid(int level_3D_grid_id, int *mid_3D_grid_id, int *mid_1D_grid_id, int size_mask, const int *mask, const char *annotation, const char *API_label)
 {
     Original_grid_info *level_3D_grid, *mid_3D_grid, *mid_1D_grid;
-    Remap_grid_class *level_1D_CoR_grid, *level_H2D_CoR_grid, *mid_1D_CoR_grid, *mid_3D_CoR_grid, *sub_grids[256];
+    Remap_grid_class *level_1D_CoR_grid, *level_H2D_CoR_grid, *mid_1D_CoR_grid, *mid_3D_CoR_grid, *sub_grids[256], *existing_level_1D_CoR_grid;
     char grid_name[NAME_STR_SIZE];
 
 
@@ -1098,19 +1156,24 @@ void Original_grid_mgt::register_mid_point_grid(int level_3D_grid_id, int *mid_3
     level_1D_CoR_grid = level_3D_grid->get_V1D_sub_CoR_grid();
     level_H2D_CoR_grid = level_3D_grid->get_H2D_sub_CoR_grid(); 
     EXECUTION_REPORT(REPORT_ERROR, -1, level_1D_CoR_grid != NULL && level_H2D_CoR_grid != NULL, "Software error in Original_grid_mgt::register_mid_point_grid: NULL level_1D_CoR_grid or NULL level_H2D_CoR_grid");
+	existing_level_1D_CoR_grid = level_1D_CoR_grid->get_mid_point_grid();
     mid_1D_CoR_grid = level_1D_CoR_grid->generate_mid_point_grid();
     sub_grids[0] = level_H2D_CoR_grid;
     sub_grids[1] = mid_1D_CoR_grid;
     sprintf(grid_name, "mid_grid_for_%s", level_3D_grid->get_original_CoR_grid()->get_grid_name());
-    mid_3D_CoR_grid = new Remap_grid_class(grid_name, 2, sub_grids, 0);
-    remap_grid_manager->add_remap_grid(mid_3D_CoR_grid);
+	mid_3D_CoR_grid = level_3D_grid->get_original_CoR_grid()->get_mid_point_grid();
+	if (mid_3D_CoR_grid == NULL) {
+	    mid_3D_CoR_grid = new Remap_grid_class(grid_name, 2, sub_grids, 0);
+    	remap_grid_manager->add_remap_grid(mid_3D_CoR_grid);
+	}
     mid_1D_CoR_grid->end_grid_definition_stage(NULL);
     mid_3D_CoR_grid->end_grid_definition_stage(NULL);
     mid_1D_grid = search_grid_info(mid_1D_CoR_grid->get_grid_name(), level_3D_grid->get_comp_id());
     if (mid_1D_grid == NULL) {
         mid_1D_grid = new Original_grid_info(level_3D_grid->get_comp_id(), original_grids.size()|TYPE_GRID_LOCAL_ID_PREFIX, mid_1D_CoR_grid->get_grid_name(), annotation, mid_1D_CoR_grid, true);
         original_grids.push_back(mid_1D_grid);
-        remap_grid_manager->add_remap_grid(mid_1D_grid->get_original_CoR_grid());
+		if (existing_level_1D_CoR_grid == NULL)
+	        remap_grid_manager->add_remap_grid(mid_1D_grid->get_original_CoR_grid());
     }
     *mid_1D_grid_id = mid_1D_grid->get_grid_id();
     mid_3D_grid = search_grid_info(mid_3D_CoR_grid->get_grid_name(), level_3D_grid->get_comp_id());
@@ -1124,6 +1187,21 @@ void Original_grid_mgt::register_mid_point_grid(int level_3D_grid_id, int *mid_3
         EXECUTION_REPORT(REPORT_ERROR, level_3D_grid->get_comp_id(), are_array_values_between_boundaries("integer", mask, size_mask, 0, 1, 0, false), "Error happens when calling the API \"%s\" to register the mid-point grid of a grid: some values of the parameter \"mask\" are wrong (not 0 and 1). Please check the model code related to the annotation \"%s\".", API_label, annotation);
         mid_3D_CoR_grid->read_grid_data_from_array("mask", "mask", DATA_TYPE_INT, (const char*)mask, 0);
     }
+    if (level_1D_CoR_grid->get_super_grid_of_setting_coord_values() == level_1D_CoR_grid)
+        mid_1D_CoR_grid->set_super_grid_of_setting_coord_values(mid_1D_CoR_grid);
+	else if (level_1D_CoR_grid->get_super_grid_of_setting_coord_values() != NULL && level_1D_CoR_grid->get_super_grid_of_setting_coord_values()->get_num_dimensions() == 3)
+		mid_1D_CoR_grid->set_super_grid_of_setting_coord_values(mid_3D_CoR_grid);
+	level_3D_grid->get_original_CoR_grid()->set_mid_point_grid(mid_3D_CoR_grid);
+}
+
+
+Original_grid_info *Original_grid_mgt::search_or_register_internal_grid(int comp_id, Remap_grid_class *CoR_grid)
+{
+	for (int i = 0; i < original_grids.size(); i ++)
+		if (original_grids[i]->get_comp_id() == comp_id && CoR_grid == original_grids[i]->get_original_CoR_grid())
+			return original_grids[i];
+	original_grids.push_back(new Original_grid_info(comp_id, original_grids.size()|TYPE_GRID_LOCAL_ID_PREFIX, CoR_grid->get_grid_name(), "Original_grid_mgt::add_original_grid", CoR_grid, false));
+	return original_grids[original_grids.size()-1];
 }
 
 

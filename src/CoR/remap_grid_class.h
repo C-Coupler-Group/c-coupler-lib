@@ -39,6 +39,7 @@
 #define GRID_FIELD_ATTRIBUTE_UNIT             "unit"
 #define SPHERE_GRID_ROTATION_LAT_THRESHOLD    ((double) 70.0)
 
+#define V3D_GRID_3D_LEVEL_FIELD_NAME          "V3D_grid_3D_level_field"
 
 class Runtime_remap_function;
 class Remap_grid_data_class;
@@ -104,13 +105,14 @@ class Remap_grid_class
         double boundary_max_lon;
         double boundary_max_lat;
         double boundary_min_lat;
+		bool using_V3D_level_coord;
         Remap_grid_data_class *hybrid_grid_coefficient_field;
         Remap_grid_data_class *sigma_grid_sigma_value_field;
-        Remap_grid_data_class *sigma_grid_surface_value_field;
+        Remap_grid_data_class *level_V3D_coord_trigger_field;
         double sigma_grid_top_value;
         double sigma_grid_scale_factor;
-        bool sigma_grid_surface_value_field_specified;
-        Remap_grid_data_class *sigma_grid_dynamic_surface_value_field;
+        bool level_V3D_coord_trigger_field_specified;
+        Remap_grid_data_class *level_V3D_coord_dynamic_trigger_field;
         
 
         /* Functions of checking the coordinate values of grid */
@@ -173,11 +175,13 @@ class Remap_grid_class
         const char *get_decomp_name() const { return decomp_name; }
         void set_decomp_name(const char*);
         bool get_grid_cyclic() const { return cyclic; }
+		void allocate_default_center_field();
         Remap_grid_data_class *get_grid_mask_field() const { return grid_mask_field; }
         Remap_grid_data_class *get_grid_imported_area() const { return imported_area; }
         bool get_are_vertex_values_set_in_default() const { return are_vertex_values_set_in_default; }
         const Remap_grid_class *get_whole_grid() const { return whole_grid; }
         Remap_grid_class *get_super_grid_of_setting_coord_values() const { return super_grid_of_setting_coord_values; }
+		void set_super_grid_of_setting_coord_values(Remap_grid_class *super_grid) { super_grid_of_setting_coord_values = super_grid; }
         Remap_grid_class *get_first_super_grid_of_enable_setting_coord_value() { return first_super_grid_of_enable_setting_coord_value; }
         void get_leaf_grids(int *, Remap_grid_class**, const Remap_grid_class*) const;
         Remap_grid_class *get_a_leaf_grid_of_sigma_or_hybrid();
@@ -228,16 +232,18 @@ class Remap_grid_class
         void generate_3D_grid_decomp_sigma_values(Remap_grid_class*, Remap_grid_class*, const int*, int);
         void gen_lev_coord_from_sigma_or_hybrid(char extension_names[16][256], const char*, const char*, const char*, const char*, double);
         void calculate_lev_sigma_values();
+		void update_grid_center_3D_level_field_from_external();
         bool is_sigma_grid();
+		bool does_use_V3D_level_coord();
+		void set_using_V3D_level_coord();
         Remap_grid_data_class *get_sigma_grid_sigma_value_field();
         Remap_grid_data_class *get_hybrid_grid_coefficient_field() { return hybrid_grid_coefficient_field; }
-        Remap_grid_data_class *get_sigma_grid_surface_value_field() { return sigma_grid_surface_value_field; }
-        bool is_sigma_grid_surface_value_field_specified() { return sigma_grid_surface_value_field_specified; }
+        Remap_grid_data_class *get_level_V3D_coord_trigger_field() { return level_V3D_coord_trigger_field; }
+        bool is_level_V3D_coord_trigger_field_specified() { return level_V3D_coord_trigger_field_specified; }
         void allocate_sigma_grid_specific_fields(Remap_grid_data_class*, Remap_grid_data_class*, Remap_grid_data_class*, double, double);
-        void set_sigma_grid_dynamic_surface_value_field(Remap_grid_data_class *); 
-        Remap_grid_data_class *get_sigma_grid_dynamic_surface_value_field() { return sigma_grid_dynamic_surface_value_field; }
-        bool is_sigma_grid_surface_value_field_updated();
-        void copy_sigma_grid_surface_value_field(Remap_grid_data_class*);
+        void set_level_V3D_coord_dynamic_trigger_field(Remap_grid_data_class *); 
+        Remap_grid_data_class *get_level_V3D_coord_dynamic_trigger_field() { return level_V3D_coord_dynamic_trigger_field; }
+        bool is_level_V3D_coord_trigger_field_updated();
         void set_lev_grid_sigma_info(const char*, double, double, const char*);
         void set_lev_grid_sigma_info(double, const double *, const double *, double);
         double get_sigma_grid_top_value() { return sigma_grid_top_value; }
@@ -268,6 +274,8 @@ class Remap_grid_class
         Remap_grid_class(Remap_grid_class*, const char *, const char *, long &);
         Remap_grid_data_class *generate_mid_point_grid_field(Remap_grid_data_class *);
         Remap_grid_class *generate_mid_point_grid();
+		Remap_grid_class *get_mid_point_grid() { return mid_point_grid; }
+		void set_mid_point_grid(Remap_grid_class *mid_point_grid) { this->mid_point_grid = mid_point_grid; }
         double get_boundary_min_lon() { return boundary_min_lon; }
         double get_boundary_max_lon() { return boundary_max_lon; }
         double get_boundary_min_lat() { return boundary_min_lat; }

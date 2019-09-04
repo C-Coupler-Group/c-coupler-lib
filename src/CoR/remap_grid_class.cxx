@@ -53,15 +53,16 @@ void Remap_grid_class::initialize_grid_class_data()
     this->area_or_volumn = NULL;
     this->sigma_grid_scale_factor = 0;
     this->sigma_grid_top_value = 0;
+	this->using_V3D_level_coord = false;
     this->boundary_min_lon = NULL_COORD_VALUE;
     this->boundary_max_lon = NULL_COORD_VALUE;
     this->boundary_min_lat = NULL_COORD_VALUE;
     this->boundary_max_lat = NULL_COORD_VALUE;
     this->hybrid_grid_coefficient_field = NULL;
     this->sigma_grid_sigma_value_field = NULL;
-    this->sigma_grid_surface_value_field = NULL;
-    this->sigma_grid_surface_value_field_specified = false;
-    this->sigma_grid_dynamic_surface_value_field = NULL;
+    this->level_V3D_coord_trigger_field = NULL;
+    this->level_V3D_coord_trigger_field_specified = false;
+    this->level_V3D_coord_dynamic_trigger_field = NULL;
     this->mid_point_grid = NULL;
     this->interface_level_grid = NULL;
 }
@@ -258,8 +259,8 @@ Remap_grid_class::~Remap_grid_class()
     if (hybrid_grid_coefficient_field != NULL)
         delete hybrid_grid_coefficient_field;
 
-    if (sigma_grid_surface_value_field != NULL)
-        delete sigma_grid_surface_value_field;
+    if (level_V3D_coord_trigger_field != NULL)
+        delete level_V3D_coord_trigger_field;
 }
 
 
@@ -408,6 +409,7 @@ Remap_grid_class *Remap_grid_class::duplicate_grid(Remap_grid_class *top_grid)
     duplicated_grid->boundary_min_lat = this->boundary_min_lat;
     duplicated_grid->boundary_max_lat = this->boundary_max_lat;
     duplicated_grid->whole_grid = this->whole_grid;
+	duplicated_grid->using_V3D_level_coord = this->using_V3D_level_coord;
     if (this->sigma_grid_sigma_value_field != NULL)
         duplicated_grid->sigma_grid_sigma_value_field = this->sigma_grid_sigma_value_field->duplicate_grid_data_field(duplicated_grid, 1, true, true);
     if (this->hybrid_grid_coefficient_field != NULL)
@@ -453,7 +455,7 @@ Remap_grid_class *Remap_grid_class::generate_remap_operator_runtime_grid(Remap_g
     long i;
     int num_leaf_grids;
     Remap_grid_class *leaf_grids[256], *super_grid, *runtime_remap_grid;
-    Remap_grid_data_class *center_value_field, *vertex_value_field, *duplicated_grid_data;
+    Remap_grid_data_class *vertex_value_field, *duplicated_grid_data;
     Remap_data_field *mask_data_field;
 
 
@@ -466,15 +468,18 @@ Remap_grid_class *Remap_grid_class::generate_remap_operator_runtime_grid(Remap_g
 
     runtime_remap_grid->get_leaf_grids(&num_leaf_grids, leaf_grids, runtime_remap_grid);
     for (i = 0; i < num_leaf_grids; i ++) {
-        if (leaf_grids[i]->has_grid_coord_label(COORD_LABEL_LEV) && leaf_grids[i]->get_sigma_grid_sigma_value_field() != NULL) {
-            center_value_field = leaf_grids[i]->get_sigma_grid_sigma_value_field();
+        if (leaf_grids[i]->has_grid_coord_label(COORD_LABEL_LEV) && (leaf_grids[i]->get_sigma_grid_sigma_value_field() != NULL || leaf_grids[i]->does_use_V3D_level_coord())) {
+			if (leaf_grids[i]->grid_center_fields.size() > 0)
+				continue;
+			leaf_grids[i]->allocate_default_center_field();				
             leaf_grids[i]->num_vertexes = 2;
-            leaf_grids[i]->grid_center_fields.push_back(center_value_field->duplicate_grid_data_field(remap_grid, 1, false, false));
-            leaf_grids[i]->grid_vertex_fields.push_back(center_value_field->duplicate_grid_data_field(remap_grid, leaf_grids[i]->num_vertexes, false, false));
+			for (int j = 0; j < leaf_grids[i]->grid_size; j ++)
+				 ((double*)leaf_grids[i]->grid_center_fields[0]->get_grid_data_field()->data_buf)[j] = j % 2 + 1;
+            leaf_grids[i]->grid_vertex_fields.push_back(leaf_grids[i]->grid_center_fields[0]->duplicate_grid_data_field(remap_grid, leaf_grids[i]->num_vertexes, false, false));
         }
         else {
             super_grid = leaf_grids[i]->super_grid_of_setting_coord_values;
-            EXECUTION_REPORT(REPORT_ERROR, -1, super_grid != NULL && super_grid->is_subset_of_grid(runtime_remap_grid), "remap software error2 in generate_remap_operator_runtime_grid\n");
+            EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, super_grid != NULL && super_grid->is_subset_of_grid(runtime_remap_grid), "remap software error2 in generate_remap_operator_runtime_grid \"%s\"   \"%s\" %lx  \"%s\"\n", grid_name, leaf_grids[i]->get_grid_name(), leaf_grids[i], super_grid->get_grid_name());
         }
     }
 
@@ -497,6 +502,26 @@ Remap_grid_class *Remap_grid_class::generate_remap_operator_runtime_grid(Remap_g
     }
 
     return runtime_remap_grid;
+}
+
+
+void Remap_grid_class::allocate_default_center_field()
+{
+	Remap_data_field *remap_data_field;
+
+	
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, num_dimensions == 1 && grid_center_fields.size() == 0, "Software error in Remap_grid_class::allocate_default_center_field");
+
+	remap_data_field = new Remap_data_field;	
+	strcpy(remap_data_field->field_name_in_application, coord_label);
+	strcpy(remap_data_field->field_name_in_IO_file, coord_label);
+	strcpy(remap_data_field->field_name_in_IO_file, coord_label);
+	strcpy(remap_data_field->data_type_in_application, DATA_TYPE_DOUBLE);
+	strcpy(remap_data_field->data_type_in_IO_file, DATA_TYPE_DOUBLE);
+	remap_data_field->required_data_size = remap_data_field->read_data_size = grid_size;
+	remap_data_field->data_buf = new double [grid_size];
+	remap_data_field->set_field_unit(coord_unit);
+	grid_center_fields.push_back(new Remap_grid_data_class(this, remap_data_field));
 }
 
 
@@ -819,7 +844,7 @@ void Remap_grid_class::gen_lev_coord_from_sigma_or_hybrid(char extension_names[1
                          "the size of field %s must be the same with 1D level subgrid of grid %s\n", hybrid_grid_coefficient_str, this->grid_name);
     }
     sscanf(lev_coord_top_str, "%lf", &data_top);
-    this->sigma_grid_surface_value_field_specified = true;
+    this->level_V3D_coord_trigger_field_specified = true;
     allocate_sigma_grid_specific_fields(hybrid_grid_coefficient, lev_sigma_coord, field_lev_coord_bot, data_top, scale_factor);
     calculate_lev_sigma_values();
 }
@@ -874,6 +899,25 @@ void Remap_grid_class::set_lev_grid_sigma_info(const char *sigma_value_field_nam
 }
 
 
+bool Remap_grid_class::does_use_V3D_level_coord()
+{
+	if (!has_grid_coord_label(COORD_LABEL_LEV))
+		return false;
+	
+	return get_a_leaf_grid(COORD_LABEL_LEV)->using_V3D_level_coord;
+}
+
+
+void Remap_grid_class::set_using_V3D_level_coord()
+{
+	Remap_grid_class *leaf_grid = get_a_leaf_grid(COORD_LABEL_LEV);	
+	
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, leaf_grid != NULL, "Software error in Remap_grid_class::set_using_V3D_level_coord");
+
+	leaf_grid->using_V3D_level_coord = true;
+}
+
+
 Remap_grid_class *Remap_grid_class::get_a_leaf_grid_of_sigma_or_hybrid()
 {
     Remap_grid_class *leaf_grid;
@@ -905,31 +949,31 @@ bool Remap_grid_class::is_sigma_grid()
 }
 
 
-bool Remap_grid_class::is_sigma_grid_surface_value_field_updated()
+bool Remap_grid_class::is_level_V3D_coord_trigger_field_updated()
 {
     bool result = false;
     
 
-    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, this->is_sigma_grid() && sigma_grid_dynamic_surface_value_field != NULL && sigma_grid_surface_value_field != NULL, "C-Coupler error1 in Remap_grid_class::is_sigma_grid_surface_value_field_updated: \"%s\" at %lx", this->grid_name, (char*)this); 
-    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, sigma_grid_dynamic_surface_value_field->get_grid_data_field()->required_data_size == sigma_grid_surface_value_field->get_grid_data_field()->required_data_size, "C-Coupler error1 in Remap_grid_class::is_sigma_grid_surface_value_field_updated");
-    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, words_are_the_same(sigma_grid_surface_value_field->get_grid_data_field()->data_type_in_application, DATA_TYPE_DOUBLE), "C-Coupler error in Remap_grid_class::is_sigma_grid_surface_value_field_updated: wrong data type");
+    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, (this->is_sigma_grid() || this->does_use_V3D_level_coord()) && level_V3D_coord_dynamic_trigger_field != NULL && level_V3D_coord_trigger_field != NULL, "C-Coupler error1 in Remap_grid_class::is_level_V3D_coord_trigger_field_updated: \"%s\" at %lx", this->grid_name, (char*)this); 
+    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, level_V3D_coord_dynamic_trigger_field->get_grid_data_field()->required_data_size == level_V3D_coord_trigger_field->get_grid_data_field()->required_data_size, "C-Coupler error1 in Remap_grid_class::is_level_V3D_coord_trigger_field_updated");
+    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, words_are_the_same(level_V3D_coord_trigger_field->get_grid_data_field()->data_type_in_application, DATA_TYPE_DOUBLE), "C-Coupler error in Remap_grid_class::is_level_V3D_coord_trigger_field_updated: wrong data type");
     
-    if (words_are_the_same(sigma_grid_dynamic_surface_value_field->get_grid_data_field()->data_type_in_application, DATA_TYPE_FLOAT)) {
-        for (int i = 0; i < sigma_grid_dynamic_surface_value_field->get_grid_data_field()->required_data_size; i ++) {
-            if (!sigma_grid_surface_value_field_specified || ((float*) sigma_grid_dynamic_surface_value_field->get_grid_data_field()->data_buf)[i] != ((double*) sigma_grid_surface_value_field->get_grid_data_field()->data_buf)[i])
+    if (words_are_the_same(level_V3D_coord_dynamic_trigger_field->get_grid_data_field()->data_type_in_application, DATA_TYPE_FLOAT)) {
+        for (int i = 0; i < level_V3D_coord_dynamic_trigger_field->get_grid_data_field()->required_data_size; i ++) {
+            if (!level_V3D_coord_trigger_field_specified || ((float*) level_V3D_coord_dynamic_trigger_field->get_grid_data_field()->data_buf)[i] != ((double*) level_V3D_coord_trigger_field->get_grid_data_field()->data_buf)[i])
                 result = true;
-            ((double*) sigma_grid_surface_value_field->get_grid_data_field()->data_buf)[i] = ((float*) sigma_grid_dynamic_surface_value_field->get_grid_data_field()->data_buf)[i];
+            ((double*) level_V3D_coord_trigger_field->get_grid_data_field()->data_buf)[i] = ((float*) level_V3D_coord_dynamic_trigger_field->get_grid_data_field()->data_buf)[i];
         }
     }
     else {
-        for (int i = 0; i < sigma_grid_dynamic_surface_value_field->get_grid_data_field()->required_data_size; i ++) {
-            if (!sigma_grid_surface_value_field_specified || ((double*) sigma_grid_dynamic_surface_value_field->get_grid_data_field()->data_buf)[i] != ((double*) sigma_grid_surface_value_field->get_grid_data_field()->data_buf)[i])
+        for (int i = 0; i < level_V3D_coord_dynamic_trigger_field->get_grid_data_field()->required_data_size; i ++) {
+            if (!level_V3D_coord_trigger_field_specified || ((double*) level_V3D_coord_dynamic_trigger_field->get_grid_data_field()->data_buf)[i] != ((double*) level_V3D_coord_trigger_field->get_grid_data_field()->data_buf)[i])
                 result = true;
-            ((double*) sigma_grid_surface_value_field->get_grid_data_field()->data_buf)[i] = ((double*) sigma_grid_dynamic_surface_value_field->get_grid_data_field()->data_buf)[i];
+            ((double*) level_V3D_coord_trigger_field->get_grid_data_field()->data_buf)[i] = ((double*) level_V3D_coord_dynamic_trigger_field->get_grid_data_field()->data_buf)[i];
         }
     }
 
-    sigma_grid_surface_value_field_specified = true;
+    level_V3D_coord_trigger_field_specified = true;
 
     if (result)
         EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "surface field for sigma grid %s has been updated", grid_name);
@@ -938,38 +982,38 @@ bool Remap_grid_class::is_sigma_grid_surface_value_field_updated()
 }
 
 
-void Remap_grid_class::set_sigma_grid_dynamic_surface_value_field(Remap_grid_data_class *value_field)
+void Remap_grid_class::set_level_V3D_coord_dynamic_trigger_field(Remap_grid_data_class *value_field)
 {
-    EXECUTION_REPORT(REPORT_ERROR, -1, this->is_sigma_grid(), "C-Coupler error1 in Remap_grid_class::set_sigma_grid_dynamic_surface_value_field");
-    EXECUTION_REPORT(REPORT_ERROR, -1, value_field->get_coord_value_grid()->is_subset_of_grid(this), "C-Coupler error2 in Remap_grid_class::set_sigma_grid_dynamic_surface_value_field");
-    EXECUTION_REPORT(REPORT_ERROR, -1, sigma_grid_dynamic_surface_value_field == NULL, "The surface field of grid %s has been specified by the models before. Please check.", grid_name);
+    EXECUTION_REPORT(REPORT_ERROR, -1, this->is_sigma_grid() || this->does_use_V3D_level_coord(), "C-Coupler error1 in Remap_grid_class::set_level_V3D_coord_dynamic_trigger_field");
+    EXECUTION_REPORT(REPORT_ERROR, -1, value_field->get_coord_value_grid()->is_subset_of_grid(this), "C-Coupler error2 in Remap_grid_class::set_level_V3D_coord_dynamic_trigger_field");
+    EXECUTION_REPORT(REPORT_ERROR, -1, level_V3D_coord_dynamic_trigger_field == NULL, "The surface field of grid %s has been specified by the models before. Please check.", grid_name);
 
-    sigma_grid_dynamic_surface_value_field = value_field;
-    if (sigma_grid_surface_value_field == NULL)
-        sigma_grid_surface_value_field = value_field->duplicate_grid_data_field(value_field->get_coord_value_grid(), 1, false, true);
-    EXECUTION_REPORT(REPORT_ERROR, -1, sigma_grid_surface_value_field->get_grid_data_field()->required_data_size == sigma_grid_dynamic_surface_value_field->get_grid_data_field()->required_data_size, "C-Coupler error in Remap_grid_class::set_sigma_grid_dynamic_surface_value_field: wrong field size");
-    if (words_are_the_same(sigma_grid_surface_value_field->get_grid_data_field()->data_type_in_application, DATA_TYPE_FLOAT)) {
-        strcpy(sigma_grid_surface_value_field->get_grid_data_field()->data_type_in_application, DATA_TYPE_DOUBLE);
-        strcpy(sigma_grid_surface_value_field->get_grid_data_field()->data_type_in_IO_file, DATA_TYPE_DOUBLE);
-        delete [] sigma_grid_surface_value_field->get_grid_data_field()->data_buf;
-        sigma_grid_surface_value_field->get_grid_data_field()->data_buf = new double [sigma_grid_surface_value_field->get_grid_data_field()->required_data_size];
+    level_V3D_coord_dynamic_trigger_field = value_field;
+    if (level_V3D_coord_trigger_field == NULL)
+        level_V3D_coord_trigger_field = value_field->duplicate_grid_data_field(value_field->get_coord_value_grid(), 1, false, true);
+    EXECUTION_REPORT(REPORT_ERROR, -1, level_V3D_coord_trigger_field->get_grid_data_field()->required_data_size == level_V3D_coord_dynamic_trigger_field->get_grid_data_field()->required_data_size, "C-Coupler error in Remap_grid_class::set_level_V3D_coord_dynamic_trigger_field: wrong field size");
+    if (words_are_the_same(level_V3D_coord_trigger_field->get_grid_data_field()->data_type_in_application, DATA_TYPE_FLOAT)) {
+        strcpy(level_V3D_coord_trigger_field->get_grid_data_field()->data_type_in_application, DATA_TYPE_DOUBLE);
+        strcpy(level_V3D_coord_trigger_field->get_grid_data_field()->data_type_in_IO_file, DATA_TYPE_DOUBLE);
+        delete [] level_V3D_coord_trigger_field->get_grid_data_field()->data_buf;
+        level_V3D_coord_trigger_field->get_grid_data_field()->data_buf = new double [level_V3D_coord_trigger_field->get_grid_data_field()->required_data_size];
     }
     if (grid_center_fields.size() == 0) {
-        grid_center_fields.push_back(sigma_grid_surface_value_field->duplicate_grid_data_field(this, 1, false, false));
+        grid_center_fields.push_back(level_V3D_coord_trigger_field->duplicate_grid_data_field(this, 1, false, false));
         strcpy(grid_center_fields[0]->get_grid_data_field()->field_name_in_application, COORD_LABEL_LEV);
         strcpy(grid_center_fields[0]->get_grid_data_field()->field_name_in_IO_file, COORD_LABEL_LEV);
     }
 }
 
 
-void Remap_grid_class::allocate_sigma_grid_specific_fields(Remap_grid_data_class *hybrid_grid_coefficient_field, Remap_grid_data_class *sigma_grid_sigma_value_field, Remap_grid_data_class *sigma_grid_surface_value_field, double data_top, double scale_factor)
+void Remap_grid_class::allocate_sigma_grid_specific_fields(Remap_grid_data_class *hybrid_grid_coefficient_field, Remap_grid_data_class *sigma_grid_sigma_value_field, Remap_grid_data_class *level_V3D_coord_trigger_field, double data_top, double scale_factor)
 {
     int num_sized_sub_grids, i, j;
     Remap_grid_class *sized_sub_grids[256];
     Remap_grid_class *sphere_grid, *existing_grid;
 
 
-    if (this->sigma_grid_surface_value_field != NULL)
+    if (this->level_V3D_coord_trigger_field != NULL)
         return;
 
     if (sigma_grid_sigma_value_field != NULL) {
@@ -988,8 +1032,8 @@ void Remap_grid_class::allocate_sigma_grid_specific_fields(Remap_grid_data_class
                              hybrid_grid_coefficient_field->get_grid_data_field()->field_name_in_application, this->get_a_leaf_grid(COORD_LABEL_LEV)->get_grid_name(), hybrid_grid_coefficient_field->get_grid_data_field()->field_name_in_application);
             this->get_a_leaf_grid(COORD_LABEL_LEV)->hybrid_grid_coefficient_field = hybrid_grid_coefficient_field->duplicate_grid_data_field(get_a_leaf_grid(COORD_LABEL_LEV), 1, true, true);
         }
-        if (sigma_grid_surface_value_field != NULL) {
-            this->sigma_grid_surface_value_field = sigma_grid_surface_value_field->duplicate_grid_data_field(sigma_grid_surface_value_field->get_coord_value_grid(), 1, true, true);
+        if (level_V3D_coord_trigger_field != NULL) {
+            this->level_V3D_coord_trigger_field = level_V3D_coord_trigger_field->duplicate_grid_data_field(level_V3D_coord_trigger_field->get_coord_value_grid(), 1, true, true);
             grid_center_fields.push_back(sigma_grid_sigma_value_field->duplicate_grid_data_field(get_a_leaf_grid(COORD_LABEL_LEV), 1, false, false));  // temp level coord value field for global grid that should not be further used
             strcpy(grid_center_fields[0]->get_grid_data_field()->field_name_in_application, COORD_LABEL_LEV);
             strcpy(grid_center_fields[0]->get_grid_data_field()->field_name_in_IO_file, COORD_LABEL_LEV);
@@ -1007,7 +1051,7 @@ void Remap_grid_class::allocate_sigma_grid_specific_fields(Remap_grid_data_class
     for (i = 0, j = 0; i < num_sized_sub_grids; i ++)
         if (!sized_sub_grids[i]->has_grid_coord_label(COORD_LABEL_LEV))
             sized_sub_grids[j++] = sized_sub_grids[i];
-    sphere_grid = new Remap_grid_class("sphere_grid_for_sigma_grid_surface_value_field", j, sized_sub_grids, 0);
+    sphere_grid = new Remap_grid_class("sphere_grid_for_level_V3D_coord_trigger_field", j, sized_sub_grids, 0);
     existing_grid = remap_grid_manager->search_same_remap_grid(sphere_grid);
     if (existing_grid != NULL) {
         delete sphere_grid;
@@ -1015,9 +1059,9 @@ void Remap_grid_class::allocate_sigma_grid_specific_fields(Remap_grid_data_class
     }
     else remap_grid_manager->add_temp_grid(sphere_grid);
 
-    this->sigma_grid_surface_value_field = this->get_a_leaf_grid_of_sigma_or_hybrid()->sigma_grid_sigma_value_field->duplicate_grid_data_field(sphere_grid, 1, false, false);
-    strcpy(this->sigma_grid_surface_value_field->get_grid_data_field()->field_name_in_application, COORD_LABEL_LEV);
-    strcpy(this->sigma_grid_surface_value_field->get_grid_data_field()->field_name_in_IO_file, COORD_LABEL_LEV);
+    this->level_V3D_coord_trigger_field = this->get_a_leaf_grid_of_sigma_or_hybrid()->sigma_grid_sigma_value_field->duplicate_grid_data_field(sphere_grid, 1, false, false);
+    strcpy(this->level_V3D_coord_trigger_field->get_grid_data_field()->field_name_in_application, COORD_LABEL_LEV);
+    strcpy(this->level_V3D_coord_trigger_field->get_grid_data_field()->field_name_in_IO_file, COORD_LABEL_LEV);
 
     if (this->grid_center_fields.size() != 0)
         EXECUTION_REPORT(REPORT_ERROR, -1, this->grid_center_fields.size() == 1, "C-Coupler error5 in allocate_sigma_grid_specific_fields");
@@ -1035,13 +1079,12 @@ Remap_grid_data_class *Remap_grid_class::get_sigma_grid_sigma_value_field()
 }
 
 
-void Remap_grid_class::copy_sigma_grid_surface_value_field(Remap_grid_data_class *field_copy_in)
+void Remap_grid_class::update_grid_center_3D_level_field_from_external()
 {
-    EXECUTION_REPORT(REPORT_ERROR, -1, this->sigma_grid_surface_value_field != NULL, "C-Coupler error1 in copy_sigma_grid_surface_value_field");
-    EXECUTION_REPORT(REPORT_ERROR, -1, this->sigma_grid_surface_value_field->get_coord_value_grid()->get_grid_size() == field_copy_in->get_coord_value_grid()->get_grid_size(), 
-                     "C-Coupler error2 in copy_sigma_grid_surface_value_field");
-
-    memcpy(this->sigma_grid_surface_value_field->get_grid_data_field()->data_buf, field_copy_in->get_grid_data_field()->data_buf, sigma_grid_surface_value_field->get_coord_value_grid()->get_grid_size()*sizeof(double));
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, this->num_dimensions == 3 && this->does_use_V3D_level_coord() && this->grid_center_fields.size() == 1, "Software error in Remap_grid_class::update_grid_center_3D_level_field_from_external");
+	EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, get_data_type_size(level_V3D_coord_trigger_field->get_grid_data_field()->data_type_in_application) == 8 && get_data_type_size(grid_center_fields[0]->get_grid_data_field()->data_type_in_application) == 8, "Software error in Remap_grid_class::update_grid_center_3D_level_field_from_external");
+	this->grid_center_fields[0]->interchange_grid_data(level_V3D_coord_trigger_field->get_coord_value_grid());
+	memcpy(this->grid_center_fields[0]->get_grid_data_field()->data_buf, level_V3D_coord_trigger_field->get_grid_data_field()->data_buf, this->grid_center_fields[0]->get_grid_data_field()->required_data_size*get_data_type_size(level_V3D_coord_trigger_field->get_grid_data_field()->data_type_in_application));	
 }
 
 
@@ -1054,8 +1097,8 @@ void Remap_grid_class::calculate_lev_sigma_values()
     double local_sigma_grid_top_value, local_sigma_grid_scale_factor;
     
 
-    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, this->is_sigma_grid() && this->sigma_grid_surface_value_field != NULL, "C-Coupler error2 in calculate_lev_sigma_values %s", grid_name);    
-    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, words_are_the_same(this->sigma_grid_surface_value_field->get_grid_data_field()->data_type_in_application, DATA_TYPE_DOUBLE),  "C-Coupler error in Remap_grid_class::calculate_lev_sigma_values: wrong data type of surface field");
+    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, this->is_sigma_grid() && this->level_V3D_coord_trigger_field != NULL, "C-Coupler error2 in calculate_lev_sigma_values %s", grid_name);    
+    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, words_are_the_same(this->level_V3D_coord_trigger_field->get_grid_data_field()->data_type_in_application, DATA_TYPE_DOUBLE),  "C-Coupler error in Remap_grid_class::calculate_lev_sigma_values: wrong data type of surface field");
 
     lev_leaf_grid_of_sigma_or_hybrid = get_a_leaf_grid_of_sigma_or_hybrid();
     lev_leaf_grid = get_a_leaf_grid(COORD_LABEL_LEV);
@@ -1093,18 +1136,18 @@ void Remap_grid_class::calculate_lev_sigma_values()
     EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, grid_center_fields.size() == 1 && grid_center_fields[0]->grid_data_field->required_data_size == grid_size, "Software error in ");
 
     leaf_grids[0] = lev_leaf_grid;
-    leaf_grids[1] = sigma_grid_surface_value_field->get_coord_value_grid();
+    leaf_grids[1] = level_V3D_coord_trigger_field->get_coord_value_grid();
     interchanged_grid = new Remap_grid_class("TEMP_GRID_INTERCHANGE", 2, leaf_grids, 0);
     grid_center_fields[0]->interchange_grid_data(interchanged_grid);
     delete interchanged_grid;
     data_grid_field = (double*) grid_center_fields[0]->get_grid_data_field()->data_buf;
-    sigma_grid_surface_value_field->interchange_grid_data(sigma_grid_surface_value_field->get_coord_value_grid());
-    data_array_bot = (double*) sigma_grid_surface_value_field->get_grid_data_field()->data_buf;
-    if (sigma_grid_surface_value_field->get_coord_value_grid()->get_grid_mask_field() != NULL)
-        horizontal_grid_mask_values = (bool*) (sigma_grid_surface_value_field->get_coord_value_grid()->get_grid_mask_field()->get_grid_data_field()->data_buf);
+    level_V3D_coord_trigger_field->interchange_grid_data(level_V3D_coord_trigger_field->get_coord_value_grid());
+    data_array_bot = (double*) level_V3D_coord_trigger_field->get_grid_data_field()->data_buf;
+    if (level_V3D_coord_trigger_field->get_coord_value_grid()->get_grid_mask_field() != NULL)
+        horizontal_grid_mask_values = (bool*) (level_V3D_coord_trigger_field->get_coord_value_grid()->get_grid_mask_field()->get_grid_data_field()->data_buf);
     else horizontal_grid_mask_values = NULL;
     tmp_vertical_coord_values = new double [lev_leaf_grid_of_sigma_or_hybrid->grid_size];
-    for (i = 0; i < sigma_grid_surface_value_field->get_coord_value_grid()->get_grid_size(); i ++) {
+    for (i = 0; i < level_V3D_coord_trigger_field->get_coord_value_grid()->get_grid_size(); i ++) {
         data_bot = data_array_bot[i];
         if (horizontal_grid_mask_values != NULL && !horizontal_grid_mask_values[i]) {
             for (j = 0; j < lev_leaf_grid_of_sigma_or_hybrid->grid_size; j ++)
@@ -1136,7 +1179,7 @@ void Remap_grid_class::calculate_lev_sigma_values()
 
 Remap_grid_data_class *Remap_grid_class::get_unique_center_field()
 {
-    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, grid_center_fields.size() == 1 && is_sigma_grid(), "C-Coupler error in Remap_grid_class::get_unique_center_field");
+    EXECUTION_REPORT_ERROR_OPTIONALLY(REPORT_ERROR, -1, grid_center_fields.size() == 1 && (is_sigma_grid() || does_use_V3D_level_coord()), "C-Coupler error in Remap_grid_class::get_unique_center_field");
     return grid_center_fields[0];
 }
 
@@ -1801,14 +1844,16 @@ void Remap_grid_class::set_2D_coord_vertex_values_in_default(const double *cente
             if (box_vertex_end_dim2 >= grid_size_dim2)
                 box_vertex_end_dim2 = grid_size_dim2 - 1;
             if (!cyclic_dim1) {
-                while ((redundant_cell_mark[box_vertex_start_dim2*grid_size_dim1+box_vertex_start_dim1] ||
-                       redundant_cell_mark[box_vertex_end_dim2*grid_size_dim1+box_vertex_start_dim1]) &&
-                       box_vertex_start_dim1 >= 0)
-                    box_vertex_start_dim1 --;
-                while ((redundant_cell_mark[box_vertex_start_dim2*grid_size_dim1+box_vertex_end_dim1] ||
-                       redundant_cell_mark[box_vertex_end_dim2*grid_size_dim1+box_vertex_end_dim1]) &&
-                       box_vertex_end_dim1 < grid_size_dim1)
-                    box_vertex_end_dim1 ++;
+				if (redundant_cell_mark != NULL)
+	                while ((redundant_cell_mark[box_vertex_start_dim2*grid_size_dim1+box_vertex_start_dim1] ||
+    	                   redundant_cell_mark[box_vertex_end_dim2*grid_size_dim1+box_vertex_start_dim1]) &&
+        	               box_vertex_start_dim1 >= 0)
+            	        box_vertex_start_dim1 --;
+				if (redundant_cell_mark != NULL)
+	                while ((redundant_cell_mark[box_vertex_start_dim2*grid_size_dim1+box_vertex_end_dim1] ||
+    	                   redundant_cell_mark[box_vertex_end_dim2*grid_size_dim1+box_vertex_end_dim1]) &&
+        	               box_vertex_end_dim1 < grid_size_dim1)
+            	        box_vertex_end_dim1 ++;
                 if (box_vertex_start_dim1 < 0)
                     box_vertex_start_dim1 = box_vertex_end_dim1;
                 if (box_vertex_end_dim1 >= grid_size_dim1) 
@@ -2495,6 +2540,8 @@ void Remap_grid_class::check_center_fields_sorting_order()
         if (words_are_the_same(grid_center_fields[i]->get_grid_data_field()->field_name_in_application, COORD_LABEL_LAT) || 
             words_are_the_same(grid_center_fields[i]->get_grid_data_field()->field_name_in_application, COORD_LABEL_LON))
             continue;
+		if (grid_center_fields[i]->get_grid_data_field()->required_data_size != grid_size)  // pseudo 3-D vertical center field
+			continue;
         get_sized_sub_grids(&num_sized_sub_grids, sized_sub_grids);
         for (j = 0, k = 0; j < num_sized_sub_grids; j ++)
             if (sized_sub_grids[j]->has_grid_coord_label(grid_center_fields[i]->get_grid_data_field()->field_name_in_application)) {
@@ -3163,15 +3210,15 @@ void Remap_grid_class::generate_3D_grid_decomp_sigma_values(Remap_grid_class *or
     EXECUTION_REPORT(REPORT_ERROR, -1, original_3D_grid->grid_center_fields.size() == 1 && this->grid_center_fields.size() == 0, "C-Coupler error2 in generate_3D_grid_decomp_sigma_values\n");
     
     grid_center_fields.push_back(original_3D_grid->grid_center_fields[0]->duplicate_grid_data_field(this, 1, false, false));
-    sigma_grid_surface_value_field = original_3D_grid->get_a_leaf_grid_of_sigma_or_hybrid()->get_sigma_grid_sigma_value_field()->duplicate_grid_data_field(decomp_grid, 1, false, false);
-    local_sigma_grid_surface_values = (double*) sigma_grid_surface_value_field->get_grid_data_field()->data_buf;
+    level_V3D_coord_trigger_field = original_3D_grid->get_a_leaf_grid_of_sigma_or_hybrid()->get_sigma_grid_sigma_value_field()->duplicate_grid_data_field(decomp_grid, 1, false, false);
+    local_sigma_grid_surface_values = (double*) level_V3D_coord_trigger_field->get_grid_data_field()->data_buf;
     for (int i = 0; i < num_local_cells; i ++)
         local_sigma_grid_surface_values[i] = 0.0;
 
-    sigma_grid_surface_value_field_specified = original_3D_grid->sigma_grid_surface_value_field_specified;
+    level_V3D_coord_trigger_field_specified = original_3D_grid->level_V3D_coord_trigger_field_specified;
     
     EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "generate decomp sigma values for 3D grid %s: %ld %ld %ld\n", grid_name, get_a_leaf_grid_of_sigma_or_hybrid()->get_sigma_grid_sigma_value_field()->get_coord_value_grid()->get_grid_size(),
-                     sigma_grid_surface_value_field->get_coord_value_grid()->get_grid_size(), this->get_grid_size());
+                     level_V3D_coord_trigger_field->get_coord_value_grid()->get_grid_size(), this->get_grid_size());
 
     this->get_leaf_grids(&num_leaf_grids, leaf_grids, this);
     for (int i = 0; i < num_leaf_grids; i ++)
@@ -3182,7 +3229,7 @@ void Remap_grid_class::generate_3D_grid_decomp_sigma_values(Remap_grid_class *or
         
     for (int i = 0; i < num_local_cells; i ++)
         if (local_cell_indexes[i] != CCPL_NULL_INT)
-            local_sigma_grid_surface_values[i] = ((double*)(original_3D_grid->sigma_grid_surface_value_field->get_grid_data_field()->data_buf))[local_cell_indexes[i]];
+            local_sigma_grid_surface_values[i] = ((double*)(original_3D_grid->level_V3D_coord_trigger_field->get_grid_data_field()->data_buf))[local_cell_indexes[i]];
         else local_sigma_grid_surface_values[i] = NULL_COORD_VALUE;
 }
 
@@ -3323,6 +3370,7 @@ void Remap_grid_class::write_grid_into_array(char **array, long &buffer_max_size
 {
     int temp_int;
 
+	EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, " write grid \"%s\"", grid_name);
     
     for (int i = sub_grids.size()-1; i >= 0 ; i --)
         sub_grids[i]->write_grid_into_array(array, buffer_max_size, buffer_content_size);
@@ -3330,10 +3378,10 @@ void Remap_grid_class::write_grid_into_array(char **array, long &buffer_max_size
     write_data_into_array_buffer(&temp_int, sizeof(int), array, buffer_max_size, buffer_content_size);
     write_grid_name_into_array(first_super_grid_of_enable_setting_coord_value, array, buffer_max_size, buffer_content_size);
     write_grid_name_into_array(super_grid_of_setting_coord_values, array, buffer_max_size, buffer_content_size);
-    write_grid_field_into_array(sigma_grid_dynamic_surface_value_field, array, buffer_max_size, buffer_content_size);
+    write_grid_field_into_array(level_V3D_coord_dynamic_trigger_field, array, buffer_max_size, buffer_content_size);
     write_grid_field_into_array(hybrid_grid_coefficient_field, array, buffer_max_size, buffer_content_size);
     write_grid_field_into_array(sigma_grid_sigma_value_field, array, buffer_max_size, buffer_content_size);
-    write_grid_field_into_array(sigma_grid_surface_value_field, array, buffer_max_size, buffer_content_size);
+    write_grid_field_into_array(level_V3D_coord_trigger_field, array, buffer_max_size, buffer_content_size);
     write_grid_field_into_array(grid_mask_field, array, buffer_max_size, buffer_content_size);
     write_grid_field_into_array(redundant_cell_mark_field, array, buffer_max_size, buffer_content_size);
     for (int i = grid_vertex_fields.size()-1; i >= 0; i --)
@@ -3346,7 +3394,8 @@ void Remap_grid_class::write_grid_into_array(char **array, long &buffer_max_size
     write_data_into_array_buffer(&temp_int, sizeof(int), array, buffer_max_size, buffer_content_size);
     write_data_into_array_buffer(&sigma_grid_scale_factor, sizeof(double), array, buffer_max_size, buffer_content_size);
     write_data_into_array_buffer(&sigma_grid_top_value, sizeof(double), array, buffer_max_size, buffer_content_size);
-    write_data_into_array_buffer(&sigma_grid_surface_value_field_specified, sizeof(bool), array, buffer_max_size, buffer_content_size);    
+    write_data_into_array_buffer(&level_V3D_coord_trigger_field_specified, sizeof(bool), array, buffer_max_size, buffer_content_size);    
+	write_data_into_array_buffer(&using_V3D_level_coord, sizeof(bool), array, buffer_max_size, buffer_content_size); 
     write_data_into_array_buffer(&are_vertex_values_set_in_default, sizeof(bool), array, buffer_max_size, buffer_content_size);
     write_data_into_array_buffer(&cyclic, sizeof(bool), array, buffer_max_size, buffer_content_size);
     write_data_into_array_buffer(&masks_are_known, sizeof(bool), array, buffer_max_size, buffer_content_size);
@@ -3405,7 +3454,8 @@ Remap_grid_class::Remap_grid_class(Remap_grid_class *top_grid, const char *grid_
     read_data_from_array_buffer(&masks_are_known, sizeof(bool), array, buffer_content_iter, true);
     read_data_from_array_buffer(&cyclic, sizeof(bool), array, buffer_content_iter, true);
     read_data_from_array_buffer(&are_vertex_values_set_in_default, sizeof(bool), array, buffer_content_iter, true);
-    read_data_from_array_buffer(&sigma_grid_surface_value_field_specified, sizeof(bool), array, buffer_content_iter, true);
+	read_data_from_array_buffer(&using_V3D_level_coord, sizeof(bool), array, buffer_content_iter, true);
+    read_data_from_array_buffer(&level_V3D_coord_trigger_field_specified, sizeof(bool), array, buffer_content_iter, true);
     read_data_from_array_buffer(&sigma_grid_top_value, sizeof(double), array, buffer_content_iter, true);
     read_data_from_array_buffer(&sigma_grid_scale_factor, sizeof(double), array, buffer_content_iter, true);
     read_data_from_array_buffer(&temp_int, sizeof(int), array, buffer_content_iter, true);
@@ -3416,10 +3466,10 @@ Remap_grid_class::Remap_grid_class(Remap_grid_class *top_grid, const char *grid_
         grid_vertex_fields.push_back(new Remap_grid_data_class(this, array, buffer_content_iter));
     read_grid_field_from_array(&redundant_cell_mark_field, array, buffer_content_iter);
     read_grid_field_from_array(&grid_mask_field, array, buffer_content_iter);
-    read_grid_field_from_array(&sigma_grid_surface_value_field, array, buffer_content_iter);
+    read_grid_field_from_array(&level_V3D_coord_trigger_field, array, buffer_content_iter);
     read_grid_field_from_array(&sigma_grid_sigma_value_field, array, buffer_content_iter);
     read_grid_field_from_array(&hybrid_grid_coefficient_field, array, buffer_content_iter);
-    read_grid_field_from_array(&sigma_grid_dynamic_surface_value_field, array, buffer_content_iter);
+    read_grid_field_from_array(&level_V3D_coord_dynamic_trigger_field, array, buffer_content_iter);
     read_data_from_array_buffer(name_super_grid_of_setting_coord_values, NAME_STR_SIZE, array, buffer_content_iter, true);
     read_data_from_array_buffer(name_first_super_grid_of_enable_setting_coord_value, NAME_STR_SIZE, array, buffer_content_iter, true);
     read_data_from_array_buffer(&temp_int, sizeof(int), array, buffer_content_iter, true);
@@ -3466,19 +3516,17 @@ void Remap_grid_class::link_grids(Remap_grid_class *top_grid, const char *grid_n
         hybrid_grid_coefficient_field->generate_grid_info(hybrid_grid_coefficient_field->coord_value_grid);
     if (sigma_grid_sigma_value_field != NULL)
         sigma_grid_sigma_value_field->generate_grid_info(sigma_grid_sigma_value_field->coord_value_grid);
-    if (sigma_grid_surface_value_field != NULL)
-        sigma_grid_surface_value_field->generate_grid_info(sigma_grid_surface_value_field->coord_value_grid);
-    if (sigma_grid_dynamic_surface_value_field != NULL)
-        sigma_grid_dynamic_surface_value_field->generate_grid_info(sigma_grid_dynamic_surface_value_field->coord_value_grid);
+    if (level_V3D_coord_trigger_field != NULL)
+        level_V3D_coord_trigger_field->generate_grid_info(level_V3D_coord_trigger_field->coord_value_grid);
+    if (level_V3D_coord_dynamic_trigger_field != NULL)
+        level_V3D_coord_dynamic_trigger_field->generate_grid_info(level_V3D_coord_dynamic_trigger_field->coord_value_grid);
 }
 
 
 bool Remap_grid_class::is_sub_grid_of_grid(Remap_grid_class *another_grid)
 {
-    if (this == another_grid) {
-        EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "qiguai %s %lx", this->get_grid_name(), this);
+    if (this == another_grid)
         return true;
-    }
 
     EXECUTION_REPORT_LOG(REPORT_LOG, -1, true, "compare %s vs %s %d %d", this->get_grid_name(), another_grid->get_grid_name(), another_grid->sub_grids.size(), another_grid->get_num_dimensions());
 
@@ -3574,8 +3622,6 @@ Remap_grid_class *Remap_grid_class::generate_mid_point_grid()
     mid_point_grid->interface_level_grid = this;
     mid_point_grid->grid_size = this->grid_size - 1;
     mid_point_grid->first_super_grid_of_enable_setting_coord_value = mid_point_grid;
-    if (this->super_grid_of_setting_coord_values != NULL)
-        mid_point_grid->super_grid_of_setting_coord_values = mid_point_grid;
     sprintf(mid_point_grid->grid_name, "mid_point_grid_for_%s", this->grid_name);
     if (this->grid_center_fields.size() == 1) {
         delete mid_point_grid->grid_center_fields[0];

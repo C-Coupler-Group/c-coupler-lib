@@ -500,6 +500,7 @@ void Remap_operator_bilinear::bilinear_one_ratio_solution_of_quadratic_equation(
     double x_diff_01, y_diff_01, x_diff_32, y_diff_32, x_diff_04, y_diff_04, x_diff_43, y_diff_43;
     double coef_A, coef_B, coef_C;
     double ratio_u1, ratio_u2, ratio_u_false;
+	double eps = 1.0e-13;
         
     /*
           (x0,y0)                  (x1,y1)
@@ -544,8 +545,12 @@ void Remap_operator_bilinear::bilinear_one_ratio_solution_of_quadratic_equation(
         ratio_u_false = ratio_u1;
     }
 
-    EXECUTION_REPORT(REPORT_ERROR, -1, ratio_u >= 0 && ratio_u <= 1, "remap software error3 in bilinear_one_ratio_solution_of_quadratic_equation");
-    EXECUTION_REPORT(REPORT_ERROR, -1, ratio_u_false < 0 || ratio_u_false > 1, "remap software error4 in bilinear_one_ratio_of_solution_quadratic_equation");
+	if (ratio_u < 0.0 && ratio_u > -eps)
+		ratio_u = 0.0;
+	if (ratio_u > 1.0 && ratio_u < 1.0+eps)
+		ratio_u = 1.0;
+    EXECUTION_REPORT(REPORT_WARNING, -1, ratio_u >= 0 && ratio_u <= 1, "remap software error3 in bilinear_one_ratio_solution_of_quadratic_equation: %0.18lf   %0.18lf  %0.18lf : (%lf %lf): (%lf %lf)  (%lf %lf)  (%lf %lf)  (%lf %lf)", ratio_u, ratio_u1, ratio_u2, dst_point_coord_values[0], dst_point_coord_values[1], bilinear_box_vertexes_coord1_values[0], bilinear_box_vertexes_coord2_values[0], bilinear_box_vertexes_coord1_values[1], bilinear_box_vertexes_coord2_values[1], bilinear_box_vertexes_coord1_values[2], bilinear_box_vertexes_coord2_values[2], bilinear_box_vertexes_coord1_values[3], bilinear_box_vertexes_coord2_values[3]);
+    //EXECUTION_REPORT(REPORT_ERROR, -1, ratio_u_false < eps || ratio_u_false > 1-eps, "remap software error4 in bilinear_one_ratio_of_solution_quadratic_equation");
 }
 
 

@@ -284,7 +284,7 @@ void Remap_grid_data_class::reset_sized_grids(int num_sized_grids, Remap_grid_cl
         grid_size *= sized_grids[i]->get_grid_size();
     }
 
-    EXECUTION_REPORT(REPORT_ERROR, -1, grid_data_field->required_data_size%grid_size == 0, "remap software error2 in reset_sized_grids\n");    
+    EXECUTION_REPORT(REPORT_ERROR, -1, grid_data_field->required_data_size%grid_size == 0, "remap software error2 in reset_sized_grids %ld vs %ld\n", grid_data_field->required_data_size, grid_size);    
 }
 
 
